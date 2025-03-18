@@ -318,9 +318,9 @@ class Policy(nn.Module):
             # ortho6d = rot_mat[..., :2].reshape(-1, 6)
             # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)[0].unsqueeze(0)
         else:
-            obs = torch.zeros(4, device=self.device)
-            goal = torch.zeros(2, device=self.device)
-            goal[0] = 1.0
+            obs = torch.zeros((1, 4), device=self.device)
+            goal = torch.zeros((1, 2), device=self.device)
+            goal[0, 0] = 1.0
 
         # plot trajectory
         if self.cond_lambda > 0:
@@ -329,16 +329,18 @@ class Policy(nn.Module):
 
             for i in range(len(lambdas)):
                 self.cond_lambda = lambdas[i]
-                traj = self.act({"obs": obs, "goal": goal})["obs_traj"][0]
+                traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
                 # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
-                self._generate_plot(axes[i], to_np(traj), to_np(obs), to_np(goal))
+                self._generate_plot(
+                    axes[i], to_np(traj[0]), to_np(obs[0]), to_np(goal[0])
+                )
 
             self.cond_lambda = 0
         else:
-            traj = self.act({"obs": obs, "goal": goal})["obs_traj"][0]
+            traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
             # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
             fig, ax = plt.subplots()
-            self._generate_plot(ax, to_np(traj), to_np(obs), to_np(goal))
+            self._generate_plot(ax, to_np(traj[0]), to_np(obs[0]), to_np(goal[0]))
 
         fig.tight_layout()
         wandb.log({"Trajectory": wandb.Image(fig)}, step=it)

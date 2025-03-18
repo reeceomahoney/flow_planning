@@ -30,7 +30,7 @@ T_action: 60
 num_envs: 64
 
 # diffusion
-sampling_steps: 64
+sampling_steps: 20
 cond_mask_prob: 0.0
 
 policy:
