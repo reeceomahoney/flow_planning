@@ -308,11 +308,10 @@ class Policy(nn.Module):
         return x
 
     def plot_trajectory(self, it: int):
+        # get obs and goal
         if isinstance(self.env, RslRlVecEnvWrapper):
-            # get obs
             obs, _ = self.env.get_observations()
             obs = obs[0:1, 18:21]
-            # get goal
             goal = self.env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
             goal = goal[0:1, :3]
             # rot_mat = matrix_from_quat(goal[:, 3:])
