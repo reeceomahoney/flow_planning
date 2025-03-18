@@ -11,7 +11,7 @@ from rsl_rl.utils import store_code_state
 from tqdm import tqdm, trange
 
 from flow_planning.envs.maze import MazeEnv
-from flow_planning.policy import DiffusionPolicy
+from flow_planning.policy import Policy
 from flow_planning.utils import (
     ExponentialMovingAverage,
     InferenceContext,
@@ -42,9 +42,7 @@ class Runner:
         normalizer = Normalizer(self.train_loader, agent_cfg.scaling, device)
         model = hydra.utils.instantiate(self.cfg.model)
         classifier = hydra.utils.instantiate(self.cfg.model, value=True)
-        self.policy = DiffusionPolicy(
-            model, classifier, normalizer, env, **self.cfg.policy
-        )
+        self.policy = Policy(model, classifier, normalizer, env, **self.cfg.policy)
 
         # ema
         self.ema_helper = ExponentialMovingAverage(
@@ -63,7 +61,9 @@ class Runner:
         # logging
         if self.log_dir is not None:
             # initialize wandb
-            wandb.init(project=self.cfg.wandb_project, dir=log_dir, config=self.cfg)
+            wandb.init(
+                project=self.cfg.experiment.wandb_project, dir=log_dir, config=self.cfg
+            )
             # make model directory
             os.makedirs(os.path.join(log_dir, "models"), exist_ok=True)  # type: ignore
             # save git diffs

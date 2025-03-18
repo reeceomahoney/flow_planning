@@ -19,7 +19,7 @@ def expand_t(tensor: Tensor, bsz: int) -> Tensor:
     return tensor.view(1, -1, 1).expand(bsz, -1, 1)
 
 
-class DiffusionPolicy(nn.Module):
+class Policy(nn.Module):
     def __init__(
         self,
         model: DiffusionTransformer,

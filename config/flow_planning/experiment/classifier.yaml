@@ -1,0 +1,2 @@
+wandb_project: classifier
+run_dir: logs/classifier/${now:%b-%d}/${now:%H-%M-%S}

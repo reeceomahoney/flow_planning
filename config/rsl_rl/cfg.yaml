@@ -34,4 +34,4 @@ algorithm:
 
 hydra:
   run:
-    dir: logs/rsl_rl/franka/${now:%b-%d}/${now:%H-%M-%S}
+    dir: logs/rsl_rl/${now:%b-%d}/${now:%H-%M-%S}

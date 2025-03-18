@@ -1,0 +1,2 @@
+wandb_project: flow_planning
+run_dir: logs/flow_planning/${now:%b-%d}/${now:%H-%M-%S}

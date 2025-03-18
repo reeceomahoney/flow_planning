@@ -11,7 +11,7 @@ dependencies = [
   "isaaclab",
   "isaaclab_assets",
   "isaaclab_mimic",
-  "isaaclab_rl[rsl_rl]",
+  "isaaclab_rl[all]",
   "isaaclab_tasks",
   "pip>=24.3.1",
   "gymnasium-robotics>=1.2.4",
