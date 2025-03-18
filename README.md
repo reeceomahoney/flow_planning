@@ -1,5 +1,5 @@
 # TODO:
 
 - [x] Create single pyproject.toml
-- [ ] Refactor configs
-- [ ] Parallelise 2d dataset
+- [x] Refactor configs
+- [x] Parallelise 2d dataset
