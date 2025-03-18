@@ -11,6 +11,7 @@ from rsl_rl.utils import store_code_state
 from tqdm import tqdm, trange
 
 from flow_planning.envs.maze import MazeEnv
+from flow_planning.envs.particle import ParticleEnv
 from flow_planning.policy import Policy
 from flow_planning.utils import (
     ExponentialMovingAverage,
@@ -27,7 +28,7 @@ log = logging.getLogger(__name__)
 class Runner:
     def __init__(
         self,
-        env: RslRlVecEnvWrapper | MazeEnv,
+        env: RslRlVecEnvWrapper | MazeEnv | ParticleEnv,
         agent_cfg,
         log_dir: str | None = None,
         device="cpu",
@@ -51,7 +52,7 @@ class Runner:
         self.use_ema = agent_cfg.use_ema
 
         # variables
-        if isinstance(env, RslRlVecEnvWrapper):
+        if isinstance(env, RslRlVecEnvWrapper | ParticleEnv):
             self.num_steps_per_env = self.env.max_episode_length  # type: ignore
         elif isinstance(env, MazeEnv):
             self.num_steps_per_env = int(self.cfg.episode_length / 0.1)
@@ -99,16 +100,8 @@ class Runner:
                     total=self.num_steps_per_env, desc="Simulating...", leave=False
                 ) as pbar:
                     while t < self.num_steps_per_env:
-                        # get goal
-                        goal = self.env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-                        # rot_mat = matrix_from_quat(goal[:, 3:])
-                        # ortho6d = rot_mat[..., :2].reshape(-1, 6)
-                        # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
-                        goal = goal[:, :3]
-
-                        # compute actions
-                        data = {"obs": obs[..., 18:21], "goal": goal}
-                        actions = self.policy.act(data)["action"]
+                        goal = self.get_goal()
+                        actions = self.policy.act({"obs": obs, "goal": goal})["action"]
 
                         # step the environment
                         for i in range(self.policy.T_action):
@@ -158,9 +151,7 @@ class Runner:
                     test_obs_mse = statistics.mean(test_obs_mse)
                     test_act_mse = statistics.mean(test_act_mse)
 
-                    # lambdas = [0, 1, 2, 5, 10]
-                    # self.policy.plot_guided_trajectory(it, lambdas, "lambdas")
-                    self.policy.plot_trajectory(it)
+                    # self.policy.plot_trajectory(it)
 
             # training
             try:
@@ -265,11 +256,22 @@ class Runner:
     def process_ep_data(self, x, new_ids):
         return x[new_ids][:, 0].detach().cpu().numpy().tolist()
 
+    def get_goal(self):
+        if isinstance(self.env, RslRlVecEnvWrapper):
+            goal = self.env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
+            # rot_mat = matrix_from_quat(goal[:, 3:])
+            # ortho6d = rot_mat[..., :2].reshape(-1, 6)
+            # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
+            goal = goal[:, :3]
+        else:
+            goal = self.env.goal
+        return goal
+
 
 class ClassifierRunner(Runner):
     def __init__(
         self,
-        env: RslRlVecEnvWrapper | MazeEnv,
+        env: RslRlVecEnvWrapper | MazeEnv | ParticleEnv,
         agent_cfg,
         log_dir: str | None = None,
         device="cpu",

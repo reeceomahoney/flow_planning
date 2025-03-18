@@ -117,7 +117,6 @@ class ConditionalUnet1D(nn.Module):
         self,
         obs_dim,
         act_dim,
-        T_cond,
         cond_embed_dim,
         down_dims,
         device,

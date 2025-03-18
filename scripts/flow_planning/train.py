@@ -40,6 +40,7 @@ from omegaconf import DictConfig, OmegaConf
 
 import flow_planning.envs  # noqa: F401,
 from flow_planning.envs.maze import MazeEnv
+from flow_planning.envs.particle import ParticleEnv
 from flow_planning.runner import ClassifierRunner, Runner
 from isaaclab.utils.io import dump_pickle, dump_yaml
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
@@ -53,7 +54,9 @@ torch.backends.cudnn.benchmark = False
 log = logging.getLogger(__name__)
 
 
-@hydra.main(version_base=None, config_path="../../config/flow_planning", config_name="cfg.yaml")
+@hydra.main(
+    version_base=None, config_path="../../config/flow_planning", config_name="cfg.yaml"
+)
 def main(agent_cfg: DictConfig):
     # set log dir
     log_dir = HydraConfig.get().runtime.output_dir
@@ -64,47 +67,50 @@ def main(agent_cfg: DictConfig):
     np.random.seed(agent_cfg.seed)
     torch.manual_seed(agent_cfg.seed)
 
-    # set task
-    task = "Isaac-Franka-FlowPlanning"
-    agent_cfg.dataset.task_name = task
-
     ### Create environment
+    env_name = agent_cfg.env.env_name
 
-    if task == "Maze":
+    if env_name == "Maze":
         # create maze environment
         env = MazeEnv(agent_cfg)
         agent_cfg.obs_dim = env.obs_dim
         agent_cfg.act_dim = env.act_dim
+    elif env_name == "Particle":
+        env = ParticleEnv(
+            num_envs=agent_cfg.num_envs, seed=agent_cfg.seed, device=agent_cfg.device
+        )
+        agent_cfg.obs_dim = env.obs_dim
+        agent_cfg.act_dim = env.act_dim
     else:
         env_cfg = parse_env_cfg(
-            task, device=agent_cfg.device, num_envs=agent_cfg.num_envs
+            env_name, device=agent_cfg.device, num_envs=agent_cfg.num_envs
         )
         # override config values
         env_cfg.scene.num_envs = agent_cfg.num_envs
         env_cfg.seed = agent_cfg.seed
         env_cfg.sim.device = agent_cfg.device
         # create isaac environment
-        env = gym.make(task, cfg=env_cfg, render_mode=None)
+        env = gym.make(env_name, cfg=env_cfg, render_mode=None)
         agent_cfg.obs_dim = 3
         agent_cfg.act_dim = 0
         env = RslRlVecEnvWrapper(env)  # type: ignore
 
     ### Create runner
 
-    if task == "Isaac-Franka-FlowPlanning":
-        runner = Runner(env, agent_cfg, log_dir=log_dir, device=agent_cfg.device)
-    elif task == "Isaac-Franka-Guidance":
+    if env_name == "Isaac-Franka-Guidance":
         runner = ClassifierRunner(
             env, agent_cfg, log_dir=log_dir, device=agent_cfg.device
         )
         model_path = "logs/diffusion/franka/Feb-28/15-30-11/" + "models/model.pt"
         runner.load(model_path)
+    else:
+        runner = Runner(env, agent_cfg, log_dir=log_dir, device=agent_cfg.device)
 
     # dump the configuration into log-directory
     agent_cfg_dict = OmegaConf.to_container(agent_cfg)
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg_dict)
     dump_pickle(os.path.join(log_dir, "params", "agent.pkl"), agent_cfg_dict)
-    if task != "Maze":
+    if env_name.startswith("Isaac"):
         dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
         dump_pickle(os.path.join(log_dir, "params", "env.pkl"), env_cfg)
 

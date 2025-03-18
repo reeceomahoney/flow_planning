@@ -22,6 +22,11 @@ class ParticleEnv:
         torch.manual_seed(seed)
         np.random.seed(seed)
 
+        self.obs_dim = 4
+        self.act_dim = 2
+        self.state = torch.zeros((num_envs, 4), device=device)
+        self.max_episode_length = 32
+
         self.num_envs = num_envs
         self.grid_size = grid_size
         self.process_noise = process_noise
@@ -65,28 +70,27 @@ class ParticleEnv:
         init_vel = torch.zeros((self.num_envs, 2), device=self.device)
         state = torch.cat([init_pos, init_vel], dim=1)
 
-        return state, target_pos, start_corners
+        self.state = state
+        self.goal = target_pos
+        self.start_corners = start_corners
+        return self.state
 
-    def compute_pd_control(self, state, target_pos):
-        pos = state[:, :2]
-        vel = state[:, 2:4]
+    def get_observations(self):
+        return self.state, None
 
-        error = target_pos - pos
+    def compute_pd_control(self):
+        pos = self.state[:, :2]
+        vel = self.state[:, 2:4]
+        error = self.goal - pos
         error_derivative = -vel
+        return self.kp * error + self.kd * error_derivative
 
-        control = self.kp * error + self.kd * error_derivative
-        return control
+    def step(self, action):
+        pos = self.state[:, :2]
+        vel = self.state[:, 2:4]
 
-    def step(self, state, action):
-        pos = state[:, :2]
-        vel = state[:, 2:4]
-
-        acc = (
-            action
-            + torch.randn(self.num_envs, 2, device=self.device) * self.process_noise
-        )
-
-        new_vel = vel + acc * self.dt
+        action += torch.randn(self.num_envs, 2, device=self.device) * self.process_noise
+        new_vel = vel + action * self.dt
         new_pos = pos + new_vel * self.dt
 
         noisy_pos = (
@@ -94,45 +98,31 @@ class ParticleEnv:
             + torch.randn(self.num_envs, 2, device=self.device) * self.measurement_noise
         )
         clipped_pos = torch.clamp(noisy_pos, 0, self.grid_size)
-
         new_state = torch.cat([clipped_pos, new_vel], dim=1)
 
-        return new_state, acc
+        self.state = new_state
+        rewards = torch.zeros(self.num_envs, device=self.device)
+        dones = torch.zeros(self.num_envs, device=self.device)
+
+        return self.state, rewards, dones, {}
 
     def generate_trajectories(self, trajectory_length, start_corners=None):
-        trajectories = torch.zeros(
-            (self.num_envs, trajectory_length, 2), device=self.device
-        )
-        velocities = torch.zeros(
-            (self.num_envs, trajectory_length, 2), device=self.device
-        )
-        accelerations = torch.zeros(
-            (self.num_envs, trajectory_length, 2), device=self.device
-        )
-        controls = torch.zeros(
-            (self.num_envs, trajectory_length, 2), device=self.device
-        )
+        obs = torch.zeros((self.num_envs, trajectory_length, self.obs_dim), device=self.device)
+        actions = torch.zeros((self.num_envs, trajectory_length, self.act_dim), device=self.device)
 
-        state, target_pos, start_corners = self.reset(start_corners)
+        self.reset(start_corners)
 
-        trajectories[:, 0, :] = state[:, :2]
-        velocities[:, 0, :] = state[:, 2:4]
+        obs[:, 0, :] = self.state
 
         for t in range(1, trajectory_length):
-            control = self.compute_pd_control(state, target_pos)
-            controls[:, t, :] = control
+            control = self.compute_pd_control()
+            actions[:, t, :] = control
 
-            next_state, acc = self.step(state, control)
+            next_state = self.step(control)[0]
 
-            trajectories[:, t, :] = next_state[:, :2]
-            velocities[:, t, :] = next_state[:, 2:4]
-            accelerations[:, t, :] = acc
+            obs[:, t, :] = next_state
 
-            state = next_state
-
-        obs = torch.cat([trajectories, velocities], dim=2)
-
-        return {"obs": obs, "actions": controls}
+        return {"obs": obs, "actions": actions}
 
     def generate_dataset(self, num_samples, trajectory_length, save_path=None):
         remaining = num_samples
@@ -191,3 +181,6 @@ class ParticleEnv:
         plt.ylim(-0.1, self.grid_size + 0.1)
         plt.grid(True)
         plt.show()
+
+    def close(self):
+        pass

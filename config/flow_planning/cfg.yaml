@@ -1,19 +1,19 @@
 defaults:
-  - model: unet
+  - env: particle
   - experiment: flow_planning
+  - model: unet
   - _self_
 
 hydra:
   run:
     dir: ${experiment.run_dir}
 
-logger: wandb
-task: null
-num_iters: 5e5
+# general
 seed: 42
 resume: false
 
 # training
+num_iters: 5e5
 log_interval: 100
 eval_interval: 1e3
 sim_interval: 5e3
@@ -26,7 +26,6 @@ scaling: linear
 obs_dim: null
 act_dim: null
 T: 60
-T_cond: 1
 T_action: 60
 num_envs: 64
 
@@ -37,8 +36,8 @@ cond_mask_prob: 0.0
 policy:
   obs_dim: ${obs_dim}
   act_dim: ${act_dim}
-  T: ${T}
-  T_action: ${T_action}
+  T: ${env.T}
+  T_action: ${env.T_action}
   sampling_steps: ${sampling_steps}
   cond_lambda: 0
   cond_mask_prob: ${cond_mask_prob}
@@ -49,12 +48,9 @@ policy:
   algo: flow
 
 dataset:
-  task_name: ${task}
-  data_directory: data/rsl_rl/franka/stitch_data.hdf5
+  env_name: ${env.env_name}
+  T: ${env.T}
   train_fraction: 0.99
-  T_cond: ${T_cond}
-  T: ${T}
   train_batch_size: 1024
   test_batch_size: 1024
   num_workers: 4
-  test: false

@@ -88,8 +88,7 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
-        # action = x[:, : self.T_action, : self.action_dim]
-        action = torch.zeros(x.shape[0], x.shape[1], 7).to(self.device)
+        action = x[:, : self.T_action, : self.action_dim]
         return {"action": action, "obs_traj": obs}
 
     def update(self, data):
@@ -264,13 +263,13 @@ class Policy(nn.Module):
             input = None
             returns = torch.ones((data["obs"].shape[0], 1)).to(self.device)
             raw_obs = data["obs"].unsqueeze(1)
-            goal = self.normalizer.scale_input(data["goal"])
+            goal = self.normalizer.scale_goal(data["goal"])
         else:
             # train and test
             raw_obs = data["obs"]
-            input = raw_obs
-            # input = torch.cat([raw_action, raw_obs], dim=-1)
-            goal = data["goal"][:, 0]
+            # input = raw_obs
+            input = torch.cat([raw_action, raw_obs], dim=-1)
+            goal = data["goal"][:, 0, :2]
 
             # returns = calculate_return(
             #     input[..., 25:28], raw_obs, goal, data["mask"], self.gammas
@@ -279,7 +278,7 @@ class Policy(nn.Module):
             returns = torch.ones((data["obs"].shape[0], 1)).to(self.device)
 
             input = self.normalizer.scale_output(input)
-            goal = self.normalizer.scale_input(goal)
+            goal = self.normalizer.scale_goal(goal)
 
         obs = self.normalizer.scale_input(raw_obs)
 
@@ -299,7 +298,7 @@ class Policy(nn.Module):
 
     def inpaint(self, x: Tensor, data: dict) -> Tensor:
         x[:, 0, self.action_dim :] = data["obs"][:, 0]
-        x[:, -1, self.action_dim :] = data["goal"]
+        x[:, -1, self.action_dim : self.action_dim + 2] = data["goal"]
         return x
 
     def plot_trajectory(self, it: int):
