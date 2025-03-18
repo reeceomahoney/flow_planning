@@ -1,0 +1,11 @@
+defaults:
+  - base
+  - _self_
+
+wandb_project: classifier_franka
+cond_mask_prob: 0.0
+cond_lambda: 0.0
+
+hydra:
+  run:
+    dir: logs/classifier/franka/${now:%b-%d}/${now:%H-%M-%S}

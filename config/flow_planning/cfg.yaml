@@ -1,0 +1,10 @@
+defaults:
+  - base
+  - model: unet
+  - _self_
+
+wandb_project: diffusion_franka
+
+hydra:
+  run:
+    dir: logs/diffusion/franka/${now:%b-%d}/${now:%H-%M-%S}

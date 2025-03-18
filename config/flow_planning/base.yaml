@@ -1,0 +1,54 @@
+defaults:
+  - _self_
+
+logger: wandb
+task: null
+num_iters: 5e5
+seed: 42
+resume: false
+
+# training
+log_interval: 100
+eval_interval: 1e3
+sim_interval: 5e3
+device: cuda
+ema_decay: 0.995
+use_ema: True
+scaling: linear
+
+#dims
+obs_dim: null
+act_dim: null
+T: 60
+T_cond: 1
+T_action: 60
+num_envs: 64
+
+# diffusion
+sampling_steps: 64
+cond_mask_prob: 0.0
+
+policy:
+  obs_dim: ${obs_dim}
+  act_dim: ${act_dim}
+  T: ${T}
+  T_action: ${T_action}
+  sampling_steps: ${sampling_steps}
+  cond_lambda: 0
+  cond_mask_prob: ${cond_mask_prob}
+  lr: 1e-4
+  betas: [0.9, 0.999]
+  num_iters: ${num_iters}
+  device: ${device}
+  algo: flow
+
+dataset:
+  task_name: ${task}
+  data_directory: data/rsl_rl/franka/stitch_data.hdf5
+  train_fraction: 0.99
+  T_cond: ${T_cond}
+  T: ${T}
+  train_batch_size: 1024
+  test_batch_size: 1024
+  num_workers: 4
+  test: false
