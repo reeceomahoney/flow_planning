@@ -11,12 +11,18 @@ from torch import Tensor
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
+from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.models.transformer import DiffusionTransformer
 from flow_planning.utils import Normalizer
+from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
 def expand_t(tensor: Tensor, bsz: int) -> Tensor:
     return tensor.view(1, -1, 1).expand(bsz, -1, 1)
+
+
+def to_np(x: Tensor) -> np.ndarray:
+    return x.detach().cpu().numpy()
 
 
 class Policy(nn.Module):
@@ -25,7 +31,7 @@ class Policy(nn.Module):
         model: DiffusionTransformer,
         classifier: DiffusionTransformer | None,
         normalizer: Normalizer,
-        env,
+        env: RslRlVecEnvWrapper | ParticleEnv | MazeEnv,
         obs_dim: int,
         act_dim: int,
         T: int,
@@ -302,17 +308,20 @@ class Policy(nn.Module):
         return x
 
     def plot_trajectory(self, it: int):
-        # get obs
-        obs, _ = self.env.get_observations()
-        obs = obs[0:1, 18:21]
-        obs_xz = self._get_xz(obs)
-        # get goal
-        goal = self.env.unwrapped.command_manager.get_command("ee_pose")
-        goal = goal[0:1, :3]
-        goal_xz = self._get_xz(goal)
-        # rot_mat = matrix_from_quat(goal[:, 3:])
-        # ortho6d = rot_mat[..., :2].reshape(-1, 6)
-        # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)[0].unsqueeze(0)
+        if isinstance(self.env, RslRlVecEnvWrapper):
+            # get obs
+            obs, _ = self.env.get_observations()
+            obs = obs[0:1, 18:21]
+            # get goal
+            goal = self.env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
+            goal = goal[0:1, :3]
+            # rot_mat = matrix_from_quat(goal[:, 3:])
+            # ortho6d = rot_mat[..., :2].reshape(-1, 6)
+            # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)[0].unsqueeze(0)
+        else:
+            obs = torch.zeros(4, device=self.device)
+            goal = torch.zeros(2, device=self.device)
+            goal[0] = 1.0
 
         # plot trajectory
         if self.cond_lambda > 0:
@@ -321,20 +330,16 @@ class Policy(nn.Module):
 
             for i in range(len(lambdas)):
                 self.cond_lambda = lambdas[i]
-                traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-                traj_xz = (
-                    torch.cat([traj[0, :, 0], traj[0, :, 2]], dim=-1).cpu().numpy()
-                )
-                self._generate_plot(axes[i], traj_xz, obs_xz, goal_xz)
+                traj = self.act({"obs": obs, "goal": goal})["obs_traj"][0]
+                # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
+                self._generate_plot(axes[i], to_np(traj), to_np(obs), to_np(goal))
 
             self.cond_lambda = 0
         else:
-            traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-            traj_xz = (
-                torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1).cpu().numpy()
-            )
+            traj = self.act({"obs": obs, "goal": goal})["obs_traj"][0]
+            # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
             fig, ax = plt.subplots()
-            self._generate_plot(ax, traj_xz, obs_xz, goal_xz)
+            self._generate_plot(ax, to_np(traj), to_np(obs), to_np(goal))
 
         fig.tight_layout()
         wandb.log({"Trajectory": wandb.Image(fig)}, step=it)
@@ -347,6 +352,3 @@ class Policy(nn.Module):
         # Plot start and goal positions
         ax.plot(obs[0], obs[1], "x", color="green", **marker_params)
         ax.plot(goal[0], goal[1], "x", color="red", **marker_params)
-
-    def _get_xz(self, x):
-        return torch.cat([x[:, 0], x[:, 2]], dim=-1).cpu().numpy()

@@ -39,8 +39,7 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
 import flow_planning.envs  # noqa: F401,
-from flow_planning.envs.maze import MazeEnv
-from flow_planning.envs.particle import ParticleEnv
+from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.runner import ClassifierRunner, Runner
 from isaaclab.utils.io import dump_pickle, dump_yaml
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper

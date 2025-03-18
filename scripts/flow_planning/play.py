@@ -44,7 +44,7 @@ from omegaconf import DictConfig
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
 from flow_planning.runner import Runner
-from flow_planning.utils import get_latest_run, plot_trajectory
+from flow_planning.utils import get_latest_run
 from isaaclab.markers.visualization_markers import (
     VisualizationMarkers,
     VisualizationMarkersCfg,
@@ -135,7 +135,7 @@ def main(agent_cfg: DictConfig):
             output = runner.policy.act({"obs": obs, "goal": goal})
             traj = output["obs_traj"][0].detach().cpu().numpy()
             fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-            plot_trajectory(ax, traj, traj[0], goal[0].cpu().numpy())
+            # plot_trajectory(ax, traj, traj[0], goal[0].cpu().numpy())
             plt.show()
             simulation_app.close()
             exit()

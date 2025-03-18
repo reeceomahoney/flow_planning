@@ -10,8 +10,7 @@ import wandb
 from rsl_rl.utils import store_code_state
 from tqdm import tqdm, trange
 
-from flow_planning.envs.maze import MazeEnv
-from flow_planning.envs.particle import ParticleEnv
+from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.policy import Policy
 from flow_planning.utils import (
     ExponentialMovingAverage,
@@ -151,7 +150,7 @@ class Runner:
                     test_obs_mse = statistics.mean(test_obs_mse)
                     test_act_mse = statistics.mean(test_act_mse)
 
-                    # self.policy.plot_trajectory(it)
+                    self.policy.plot_trajectory(it)
 
             # training
             try:

@@ -1,13 +1,16 @@
 import gymnasium as gym
 
-from . import flow_planning, rsl_rl
+from .flow_planning import FrankaFlowPlanningEnvCfg, FrankaGuidanceEnvCfg
+from .maze import MazeEnv  # noqa: F401
+from .particle import ParticleEnv  # noqa: F401
+from .rsl_rl import FrankaRLEnvCfg
 
 gym.register(
     id="Isaac-Franka-RL",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": rsl_rl.FrankaRLEnvCfg,
+        "env_cfg_entry_point": FrankaRLEnvCfg,
     },
 )
 
@@ -16,7 +19,7 @@ gym.register(
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": flow_planning.FrankaFlowPlanningEnvCfg,
+        "env_cfg_entry_point": FrankaFlowPlanningEnvCfg,
     },
 )
 
@@ -25,6 +28,6 @@ gym.register(
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": flow_planning.FrankaGuidanceEnvCfg,
+        "env_cfg_entry_point": FrankaGuidanceEnvCfg,
     },
 )
