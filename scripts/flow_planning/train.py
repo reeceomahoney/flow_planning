@@ -78,8 +78,8 @@ def main(agent_cfg: DictConfig):
         env = ParticleEnv(
             num_envs=agent_cfg.num_envs, seed=agent_cfg.seed, device=agent_cfg.device
         )
-        agent_cfg.obs_dim = env.obs_dim
-        agent_cfg.act_dim = env.act_dim
+        agent_cfg.obs_dim = 2
+        agent_cfg.act_dim = 0
     else:
         env_cfg = parse_env_cfg(
             env_name, device=agent_cfg.device, num_envs=agent_cfg.num_envs

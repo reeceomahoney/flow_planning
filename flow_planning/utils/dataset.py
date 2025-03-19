@@ -52,9 +52,9 @@ class FlowPlanningDataset(Dataset):
 
         elif env_name == "Particle":
             dataset = torch.load("data/flow_planning/particle_env/dataset.pt")
-            obs = dataset["obs"]
+            obs = dataset["obs"][..., :2]
             actions = dataset["actions"]
-            terminals = torch.zeros_like(obs[:, :, 0])
+            terminals = torch.zeros_like(obs[..., 0])
             terminals[:, -1] = 1
             split_indices = torch.where(terminals.flatten() == 1)[0] + 1
 
@@ -147,7 +147,8 @@ class FlowPlanningDataset(Dataset):
     def calculate_norm_data(self, obs_splits, actions_splits):
         all_obs = torch.cat(obs_splits)
         all_actions = torch.cat(actions_splits)
-        all_obs_acts = torch.cat([all_actions, all_obs], dim=-1)
+        # all_obs_acts = torch.cat([all_actions, all_obs], dim=-1)
+        all_obs_acts = all_obs
 
         self.x_mean = all_obs.mean(0)
         self.x_std = all_obs.std(0)
@@ -213,10 +214,7 @@ def get_dataloaders(
     num_workers: int,
 ):
     # Build the datasets
-    dataset = FlowPlanningDataset(
-        env_name=env_name,
-        T=T,
-    )
+    dataset = FlowPlanningDataset(env_name=env_name, T=T)
     train, val = random_split(dataset, [train_fraction, 1 - train_fraction])
     train_set = SlicerWrapper(train, T)
     test_set = SlicerWrapper(val, T)

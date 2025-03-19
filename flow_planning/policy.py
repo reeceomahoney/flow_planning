@@ -40,7 +40,6 @@ class Policy(nn.Module):
         cond_lambda: int,
         cond_mask_prob: float,
         lr: float,
-        betas: tuple,
         num_iters: int,
         device: str,
         algo: str,
@@ -69,10 +68,8 @@ class Policy(nn.Module):
         self.algo = algo  # ddpm or flow
 
         # optimizer and lr scheduler
-        self.optimizer = AdamW(self.model.parameters(), lr=2e-4)
-        self.classifier_optimizer = AdamW(
-            self.classifier.get_optim_groups(), lr=lr, betas=betas
-        )
+        self.optimizer = AdamW(self.model.parameters(), lr=lr)
+        self.classifier_optimizer = AdamW(self.classifier.parameters(), lr=lr)
         self.lr_scheduler = CosineAnnealingLR(self.optimizer, T_max=num_iters)
         self.classifier_lr_scheduler = CosineAnnealingLR(
             self.classifier_optimizer, T_max=num_iters
@@ -94,7 +91,8 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
-        action = x[:, : self.T_action, : self.action_dim]
+        # action = x[:, : self.T_action, : self.action_dim]
+        action = torch.zeros_like(obs[..., :2])
         return {"action": action, "obs_traj": obs}
 
     def update(self, data):
@@ -262,38 +260,20 @@ class Policy(nn.Module):
     @torch.no_grad()
     def process(self, data: dict) -> dict:
         data = self.dict_to_device(data)
-        raw_action = data.get("action", None)
 
-        if raw_action is None:
-            # sim
-            input = None
-            returns = torch.ones((data["obs"].shape[0], 1)).to(self.device)
-            raw_obs = data["obs"].unsqueeze(1)
-            goal = self.normalizer.scale_goal(data["goal"])
+        if "action" in data:
+            # train and test case
+            obs = data["obs"]
+            input = self.normalizer.scale_output(obs)
+            goal = self.normalizer.scale_goal(data["goal"][:, 0, :2])
         else:
-            # train and test
-            raw_obs = data["obs"]
-            # input = raw_obs
-            input = torch.cat([raw_action, raw_obs], dim=-1)
-            goal = data["goal"][:, 0, :2]
+            # sim case
+            input = None
+            obs = data["obs"].unsqueeze(1)
+            goal = self.normalizer.scale_goal(data["goal"])
 
-            # returns = calculate_return(
-            #     input[..., 25:28], raw_obs, goal, data["mask"], self.gammas
-            # )
-            # returns = self.normalizer.scale_return(returns)
-            returns = torch.ones((data["obs"].shape[0], 1)).to(self.device)
-
-            input = self.normalizer.scale_output(input)
-            goal = self.normalizer.scale_goal(goal)
-
-        obs = self.normalizer.scale_input(raw_obs)
-
-        return {
-            "obs": obs,
-            "input": input,
-            "goal": goal,
-            "returns": returns,
-        }
+        obs = self.normalizer.scale_input(obs[:, 0])
+        return {"obs": obs, "input": input, "goal": goal}
 
     ###########
     # Helpers #
@@ -303,7 +283,7 @@ class Policy(nn.Module):
         return {k: v.to(self.device) for k, v in data.items()}
 
     def inpaint(self, x: Tensor, data: dict) -> Tensor:
-        x[:, 0, self.action_dim :] = data["obs"][:, 0]
+        x[:, 0, self.action_dim : self.action_dim + 2] = data["obs"][:, :2]
         x[:, -1, self.action_dim : self.action_dim + 2] = data["goal"]
         return x
 
@@ -318,7 +298,7 @@ class Policy(nn.Module):
             # ortho6d = rot_mat[..., :2].reshape(-1, 6)
             # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)[0].unsqueeze(0)
         else:
-            obs = torch.zeros((1, 4), device=self.device)
+            obs = torch.zeros((1, 2), device=self.device)
             goal = torch.zeros((1, 2), device=self.device)
             goal[0, 0] = 1.0
 
@@ -331,21 +311,20 @@ class Policy(nn.Module):
                 self.cond_lambda = lambdas[i]
                 traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
                 # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
-                self._generate_plot(
-                    axes[i], to_np(traj[0]), to_np(obs[0]), to_np(goal[0])
-                )
+                self._generate_plot(axes[i], traj[0], obs[0], goal[0])
 
             self.cond_lambda = 0
         else:
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
             # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
             fig, ax = plt.subplots()
-            self._generate_plot(ax, to_np(traj[0]), to_np(obs[0]), to_np(goal[0]))
+            self._generate_plot(ax, traj[0], obs[0], goal[0])
 
         fig.tight_layout()
         wandb.log({"Trajectory": wandb.Image(fig)}, step=it)
 
     def _generate_plot(self, ax, traj, obs, goal):
+        traj, obs, goal = to_np(traj), to_np(obs), to_np(goal)
         marker_params = {"markersize": 10, "markeredgewidth": 3}
         # Plot trajectory with color gradient
         gradient = np.linspace(0, 1, len(traj))

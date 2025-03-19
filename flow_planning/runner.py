@@ -33,7 +33,7 @@ class Runner:
         device="cpu",
     ):
         self.env = env
-        # self.env.reset()
+        self.env.reset()
         self.cfg = agent_cfg
         self.device = device
 
@@ -134,8 +134,6 @@ class Runner:
 
                             t += 1
                             pbar.update(1)
-                            if t == self.num_steps_per_env:
-                                break
 
             # evaluation
             if it % self.cfg.eval_interval == 0:

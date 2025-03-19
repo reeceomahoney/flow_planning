@@ -13,9 +13,9 @@ class ParticleEnv:
         process_noise=0.02,
         measurement_noise=0.01,
         init_pos_var=0.05,
-        kp=1.0,
-        kd=0.5,
-        dt=0.1,
+        kp=2.0,
+        kd=1.0,
+        dt=0.05,
         seed=42,
         device="cpu",
     ):
@@ -76,7 +76,7 @@ class ParticleEnv:
         return self.state
 
     def get_observations(self):
-        return self.state, None
+        return self.state[:, :2], None
 
     def compute_pd_control(self):
         pos = self.state[:, :2]
@@ -104,7 +104,7 @@ class ParticleEnv:
         rewards = torch.zeros(self.num_envs, device=self.device)
         dones = torch.zeros(self.num_envs, device=self.device)
 
-        return self.state, rewards, dones, {}
+        return self.state[:, :2], rewards, dones, {}
 
     def generate_trajectories(self, trajectory_length, start_corners=None):
         obs = torch.zeros((self.num_envs, trajectory_length, self.obs_dim), device=self.device)

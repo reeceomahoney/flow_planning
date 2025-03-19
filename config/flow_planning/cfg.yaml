@@ -25,12 +25,10 @@ scaling: linear
 #dims
 obs_dim: null
 act_dim: null
-T: 60
-T_action: 60
 num_envs: 64
 
 # diffusion
-sampling_steps: 20
+sampling_steps: 10
 cond_mask_prob: 0.0
 
 policy:
@@ -41,8 +39,7 @@ policy:
   sampling_steps: ${sampling_steps}
   cond_lambda: 0
   cond_mask_prob: ${cond_mask_prob}
-  lr: 1e-4
-  betas: [0.9, 0.999]
+  lr: 2e-4
   num_iters: ${num_iters}
   device: ${device}
   algo: flow

@@ -32,24 +32,26 @@ simulation_app = app_launcher.app
 """Rest everything follows."""
 
 import os
+import random
 import sys
 import time
 
 import gymnasium as gym
 import hydra
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from omegaconf import DictConfig
 
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
+from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.runner import Runner
 from flow_planning.utils import get_latest_run
 from isaaclab.markers.visualization_markers import (
     VisualizationMarkers,
     VisualizationMarkersCfg,
 )
-from isaaclab.utils.math import matrix_from_quat
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
@@ -82,29 +84,49 @@ def create_trajectory_visualizer(agent_cfg):
     return trajectory_visualizer
 
 
-@hydra.main(version_base=None, config_path="config", config_name="cfg.yaml")
+@hydra.main(
+    version_base=None, config_path="../../config/flow_planning", config_name="cfg.yaml"
+)
 def main(agent_cfg: DictConfig):
-    # load env config
-    task = "Isaac-Franka-FlowPlanning"
-    env_cfg = parse_env_cfg(task, device=agent_cfg.device, num_envs=agent_cfg.num_envs)
-    env_cfg.scene.num_envs = 1
+    # set random seed
+    random.seed(agent_cfg.seed)
+    np.random.seed(agent_cfg.seed)
+    torch.manual_seed(agent_cfg.seed)
+
+    ### Create environment
+    env_name = agent_cfg.env.env_name
     agent_cfg.num_envs = 1
-    agent_cfg.dataset.task_name = task
 
-    # create isaac environment
-    env = gym.make(task, cfg=env_cfg)
-
-    # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)  # type: ignore
-    agent_cfg.obs_dim = 3
-    agent_cfg.act_dim = 0
-    agent_cfg.dataset.test = True
+    if env_name == "Maze":
+        # create maze environment
+        env = MazeEnv(agent_cfg)
+        agent_cfg.obs_dim = env.obs_dim
+        agent_cfg.act_dim = env.act_dim
+    elif env_name == "Particle":
+        env = ParticleEnv(
+            num_envs=agent_cfg.num_envs, seed=agent_cfg.seed, device=agent_cfg.device
+        )
+        agent_cfg.obs_dim = 2
+        agent_cfg.act_dim = 0
+    else:
+        env_cfg = parse_env_cfg(
+            env_name, device=agent_cfg.device, num_envs=agent_cfg.num_envs
+        )
+        # override config values
+        env_cfg.scene.num_envs = agent_cfg.num_envs
+        env_cfg.seed = agent_cfg.seed
+        env_cfg.sim.device = agent_cfg.device
+        # create isaac environment
+        env = gym.make(env_name, cfg=env_cfg, render_mode=None)
+        agent_cfg.obs_dim = 3
+        agent_cfg.act_dim = 0
+        env = RslRlVecEnvWrapper(env)  # type: ignore
 
     # load model runner
     runner = Runner(env, agent_cfg, device=agent_cfg.device)
 
     # load the checkpoint
-    log_root_path = os.path.abspath("logs/diffusion/franka")
+    log_root_path = os.path.abspath("logs/flow_planning")
     resume_path = os.path.join(get_latest_run(log_root_path), "models", "model.pt")
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
@@ -119,24 +141,24 @@ def main(agent_cfg: DictConfig):
         start = time.time()
 
         # get goal
-        goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-        rot_mat = matrix_from_quat(goal[:, 3:])
-        ortho6d = rot_mat[..., :2].reshape(-1, 6)
-        goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
+        # goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
+        # rot_mat = matrix_from_quat(goal[:, 3:])
+        # ortho6d = rot_mat[..., :2].reshape(-1, 6)
+        # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
 
-        # obs = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
-        # goal = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
-        # goal[0, 0] = 1
+        obs = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
+        goal = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
+        goal[0, 0] = 1
         # goal[0, 1] = 1
 
         # plot trajectory
         if args_cli.plot:
             # lambdas = [0, 1, 2, 5, 10]
-            output = runner.policy.act({"obs": obs, "goal": goal})
-            traj = output["obs_traj"][0].detach().cpu().numpy()
-            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-            # plot_trajectory(ax, traj, traj[0], goal[0].cpu().numpy())
-            plt.show()
+            traj = runner.policy.act({"obs": obs, "goal": goal})["obs_traj"]
+            # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
+            fig, ax = plt.subplots()
+            runner.policy._generate_plot(ax, traj[0], goal[0], obs[0])
+            plt.savefig("data.png")
             simulation_app.close()
             exit()
 
