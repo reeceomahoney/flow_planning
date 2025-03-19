@@ -4,6 +4,5 @@ act_dim: ${act_dim}
 cond_embed_dim: 32
 down_dims: [32, 128, 256]
 device: ${device}
-cond_mask_prob: ${cond_mask_prob}
 weight_decay: 1e-3
 cond_predict_scale: false

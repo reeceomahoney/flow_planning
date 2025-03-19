@@ -120,8 +120,6 @@ class ConditionalUnet1D(nn.Module):
         cond_embed_dim,
         down_dims,
         device,
-        cond_mask_prob,
-        weight_decay: float,
         local_cond_dim=None,
         kernel_size=5,
         n_groups=8,
@@ -195,9 +193,6 @@ class ConditionalUnet1D(nn.Module):
             nn.Conv1d(start_dim, input_dim, 1),
         )
 
-        self.cond_mask_prob = cond_mask_prob
-        self.weight_decay = weight_decay
-
         self.local_cond_encoder = local_cond_encoder
         self.up_modules = up_modules
         self.down_modules = down_modules
@@ -268,9 +263,6 @@ class ConditionalUnet1D(nn.Module):
         x = einops.rearrange(x, "b h t -> b t h")
         return x
 
-    def get_optim_groups(self):
-        return [{"params": self.parameters(), "weight_decay": self.weight_decay}]
-
 
 class ValueUnet1D(nn.Module):
     def __init__(
@@ -282,7 +274,6 @@ class ValueUnet1D(nn.Module):
         cond_embed_dim,
         down_dims,
         device,
-        cond_mask_prob,
         weight_decay: float,
         local_cond_dim=None,
         kernel_size=5,

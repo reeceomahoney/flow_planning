@@ -72,10 +72,10 @@ def create_trajectory_visualizer(agent_cfg):
             f"cuboid_{i}": sim_utils.SphereCfg(
                 radius=0.02,
                 visual_material=sim_utils.PreviewSurfaceCfg(
-                    diffuse_color=interpolate_color(i / (agent_cfg.T - 1))
+                    diffuse_color=interpolate_color(i / (agent_cfg.env.T - 1))
                 ),
             )
-            for i in range(agent_cfg.T)
+            for i in range(agent_cfg.env.T)
         },
     )
     trajectory_visualizer = VisualizationMarkers(trajectory_visualizer_cfg)
@@ -121,6 +121,8 @@ def main(agent_cfg: DictConfig):
         agent_cfg.obs_dim = 3
         agent_cfg.act_dim = 0
         env = RslRlVecEnvWrapper(env)  # type: ignore
+        # create trajectory visualizer
+        trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     # load model runner
     runner = Runner(env, agent_cfg, device=agent_cfg.device)
@@ -130,9 +132,6 @@ def main(agent_cfg: DictConfig):
     resume_path = os.path.join(get_latest_run(log_root_path), "models", "model.pt")
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
-
-    # create trajectory visualizer
-    trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     # reset environment
     obs, _ = env.get_observations()

@@ -18,7 +18,6 @@ class DiffusionTransformer(nn.Module):
         nhead: int,
         num_layers: int,
         T: int,
-        cond_mask_prob: float,
         attn_dropout: float,
         weight_decay: float,
         device: str,
@@ -29,7 +28,6 @@ class DiffusionTransformer(nn.Module):
         input_dim = act_dim + obs_dim
         # input_len = T + 3 if value else T + 2
         input_len = T + 1
-        self.cond_mask_prob = cond_mask_prob
         self.weight_decay = weight_decay
         self.device = device
         self.T = T

@@ -126,6 +126,7 @@ class Policy(nn.Module):
         out = self.inpaint(out, data)
 
         loss = F.mse_loss(out, target)
+
         # update model
         self.optimizer.zero_grad()
         loss.backward()
