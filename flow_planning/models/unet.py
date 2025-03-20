@@ -5,10 +5,11 @@ import einops
 import torch
 import torch.nn as nn
 from einops.layers.torch import Rearrange
+from torch import Tensor
 
 from flow_planning.utils import SinusoidalPosEmb
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class Downsample1d(nn.Module):
@@ -29,21 +30,13 @@ class Upsample1d(nn.Module):
         return self.conv(x)
 
 
-class Conv1dBlock(nn.Module):
-    """
-    Conv1d --> GroupNorm --> Mish
-    """
-
-    def __init__(self, inp_channels, out_channels, kernel_size, n_groups=8):
+class ConvBlock(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
-
+        kernel_size = 5
         self.block = nn.Sequential(
-            nn.Conv1d(
-                inp_channels, out_channels, kernel_size, padding=kernel_size // 2
-            ),
-            # Rearrange('batch channels horizon -> batch channels 1 horizon'),
-            nn.GroupNorm(n_groups, out_channels),
-            # Rearrange('batch channels 1 horizon -> batch channels horizon'),
+            nn.Conv1d(in_channels, out_channels, kernel_size, padding=kernel_size // 2),
+            nn.GroupNorm(8, out_channels),
             nn.Mish(),
         )
 
@@ -51,39 +44,16 @@ class Conv1dBlock(nn.Module):
         return self.block(x)
 
 
-class ConditionalResidualBlock1D(nn.Module):
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        cond_dim,
-        kernel_size=3,
-        n_groups=8,
-        cond_predict_scale=False,
-    ):
+class ResBlock(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, cond_dim: int):
         super().__init__()
-
-        self.blocks = nn.ModuleList(
-            [
-                Conv1dBlock(in_channels, out_channels, kernel_size, n_groups=n_groups),
-                Conv1dBlock(out_channels, out_channels, kernel_size, n_groups=n_groups),
-            ]
-        )
-
-        # FiLM modulation https://arxiv.org/abs/1709.07871
-        # predicts per-channel scale and bias
-        cond_channels = out_channels
-        if cond_predict_scale:
-            cond_channels = out_channels * 2
-        self.cond_predict_scale = cond_predict_scale
-        self.out_channels = out_channels
+        self.conv1 = ConvBlock(in_channels, out_channels)
+        self.conv2 = ConvBlock(out_channels, out_channels)
         self.cond_encoder = nn.Sequential(
             nn.Mish(),
-            nn.Linear(cond_dim, cond_channels),
+            nn.Linear(cond_dim, out_channels),
             Rearrange("batch t -> batch t 1"),
         )
-
-        # make sure dimensions compatible
         self.residual_conv = (
             nn.Conv1d(in_channels, out_channels, 1)
             if in_channels != out_channels
@@ -91,75 +61,31 @@ class ConditionalResidualBlock1D(nn.Module):
         )
 
     def forward(self, x, cond):
-        """
-        x : [ batch_size x in_channels x horizon ]
-        cond : [ batch_size x cond_dim]
-
-        returns:
-        out : [ batch_size x out_channels x horizon ]
-        """
-        out = self.blocks[0](x)
+        out = self.conv1(x)
         embed = self.cond_encoder(cond)
-        if self.cond_predict_scale:
-            embed = embed.reshape(embed.shape[0], 2, self.out_channels, 1)
-            scale = embed[:, 0, ...]
-            bias = embed[:, 1, ...]
-            out = scale * out + bias
-        else:
-            out = out + embed
-        out = self.blocks[1](out)
-        out = out + self.residual_conv(x)
-        return out
+        out = self.conv2(out + embed)
+        return out + self.residual_conv(x)
 
 
 class ConditionalUnet1D(nn.Module):
-    def __init__(
-        self,
-        obs_dim,
-        act_dim,
-        cond_embed_dim,
-        down_dims,
-        device,
-        local_cond_dim=None,
-        kernel_size=5,
-        n_groups=8,
-        cond_predict_scale=False,
-        value=False,
-    ):
+    def __init__(self, obs_dim, act_dim, cond_dim, down_dims, device, value=False):
         super().__init__()
         input_dim = obs_dim + act_dim
-        # input_dim = act_dim
         all_dims = [input_dim] + list(down_dims)
         start_dim = down_dims[0]
         in_out = list(zip(all_dims[:-1], all_dims[1:], strict=False))
 
         # diffusion step embedding and observations
         self.cond_encoder = nn.Sequential(
-            SinusoidalPosEmb(cond_embed_dim, device),
-            nn.Linear(cond_embed_dim, cond_embed_dim * 4),
+            SinusoidalPosEmb(cond_dim, device),
+            nn.Linear(cond_dim, cond_dim * 4),
             nn.Mish(),
-            nn.Linear(cond_embed_dim * 4, cond_embed_dim),
+            nn.Linear(cond_dim * 4, cond_dim),
         )
-
-        CondResBlock = partial(
-            ConditionalResidualBlock1D,
-            cond_dim=cond_embed_dim,
-            kernel_size=kernel_size,
-            n_groups=n_groups,
-            cond_predict_scale=cond_predict_scale,
-        )
-
-        local_cond_encoder = None
-        if local_cond_dim is not None:
-            _, dim_out = in_out[0]
-            dim_in = local_cond_dim
-            local_cond_encoder = nn.ModuleList(
-                [CondResBlock(dim_in, dim_out), CondResBlock(dim_in, dim_out)]
-            )
 
         mid_dim = all_dims[-1]
         self.mid_modules = nn.ModuleList(
-            [CondResBlock(mid_dim, mid_dim), CondResBlock(mid_dim, mid_dim)]
+            [ResBlock(mid_dim, mid_dim, cond_dim), ResBlock(mid_dim, mid_dim, cond_dim)]
         )
 
         down_modules = nn.ModuleList([])
@@ -168,8 +94,8 @@ class ConditionalUnet1D(nn.Module):
             down_modules.append(
                 nn.ModuleList(
                     [
-                        CondResBlock(dim_in, dim_out),
-                        CondResBlock(dim_out, dim_out),
+                        ResBlock(dim_in, dim_out, cond_dim),
+                        ResBlock(dim_out, dim_out, cond_dim),
                         Downsample1d(dim_out) if not is_last else nn.Identity(),
                     ]
                 )
@@ -181,68 +107,33 @@ class ConditionalUnet1D(nn.Module):
             up_modules.append(
                 nn.ModuleList(
                     [
-                        CondResBlock(dim_out * 2, dim_in),
-                        CondResBlock(dim_in, dim_in),
+                        ResBlock(dim_out * 2, dim_in, cond_dim),
+                        ResBlock(dim_in, dim_in, cond_dim),
                         Upsample1d(dim_in) if not is_last else nn.Identity(),
                     ]
                 )
             )
 
         final_conv = nn.Sequential(
-            Conv1dBlock(start_dim, start_dim, kernel_size=kernel_size),
+            ConvBlock(start_dim, start_dim),
             nn.Conv1d(start_dim, input_dim, 1),
         )
 
-        self.local_cond_encoder = local_cond_encoder
         self.up_modules = up_modules
         self.down_modules = down_modules
         self.final_conv = final_conv
-
         self.to(device)
 
-        logger.info(
-            "number of parameters: %e", sum(p.numel() for p in self.parameters())
-        )
+        total_params = sum(p.numel() for p in self.parameters())
+        log.info(f"Total parameters: {total_params:e}")
 
-    def forward(
-        self,
-        noised_action: torch.Tensor,
-        sigma: torch.Tensor,
-        data_dict: dict,
-    ):
-        """
-        x: (B,T,input_dim)
-        timestep: (B,) or int, diffusion step
-        local_cond: (B,T,local_cond_dim)
-        global_cond: (B,global_cond_dim)
-        output: (B,T,input_dim)
-        """
-        sample = einops.rearrange(noised_action, "b t h -> b h t")
-        sigma = sigma.to(sample.device).view(-1, 1)
+    def forward(self, x: Tensor, t: Tensor, data_dict: dict):
+        x = einops.rearrange(x, "b t h -> b h t")
+        global_feature = self.cond_encoder(t.view(-1, 1)).squeeze(1)
 
-        # create global feature
-        # obs = data_dict["obs"].reshape(sample.shape[0], -1)
-        # goal = data_dict["goal"]
-        # global_feature = torch.cat([sigma, obs, goal], dim=-1)
-        global_feature = self.cond_encoder(sigma).squeeze(1)
-
-        # encode local features
-        h_local = list()
-        local_cond = None
-        if self.local_cond_encoder is not None:
-            local_cond = einops.rearrange(local_cond, "b t h -> b h t")
-            resnet, resnet2 = self.local_cond_encoder
-            x = resnet(local_cond, global_feature)
-            h_local.append(x)
-            x = resnet2(local_cond, global_feature)
-            h_local.append(x)
-
-        x = sample
         h = []
-        for idx, (resnet, resnet2, downsample) in enumerate(self.down_modules):  # type: ignore
+        for resnet, resnet2, downsample in self.down_modules:  # type: ignore
             x = resnet(x, global_feature)
-            if idx == 0 and len(h_local) > 0:
-                x = x + h_local[0]
             x = resnet2(x, global_feature)
             h.append(x)
             x = downsample(x)
@@ -250,11 +141,9 @@ class ConditionalUnet1D(nn.Module):
         for mid_module in self.mid_modules:
             x = mid_module(x, global_feature)
 
-        for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):  # type: ignore
+        for resnet, resnet2, upsample in self.up_modules:  # type: ignore
             x = torch.cat((x, h.pop()), dim=1)
             x = resnet(x, global_feature)
-            if idx == (len(self.up_modules)) and len(h_local) > 0:
-                x = x + h_local[1]
             x = resnet2(x, global_feature)
             x = upsample(x)
 
