@@ -33,7 +33,7 @@ class Runner:
         device="cpu",
     ):
         self.env = env
-        self.env.reset()
+        # self.env.reset()
         self.cfg = agent_cfg
         self.device = device
 
@@ -100,6 +100,7 @@ class Runner:
                 ) as pbar:
                     while t < self.num_steps_per_env:
                         goal = self.get_goal()
+                        obs = torch.stack([obs[..., 18], obs[..., 20]], dim=-1)
                         actions = self.policy.act({"obs": obs, "goal": goal})["action"]
 
                         # step the environment
@@ -259,7 +260,8 @@ class Runner:
             # rot_mat = matrix_from_quat(goal[:, 3:])
             # ortho6d = rot_mat[..., :2].reshape(-1, 6)
             # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
-            goal = goal[:, :3]
+            # goal = goal[:, :3]
+            goal = torch.stack([goal[:1, 0], goal[:1, 2]], dim=-1)
         else:
             goal = self.env.goal
             goal = torch.cat([goal, torch.zeros_like(goal)], dim=-1)

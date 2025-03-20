@@ -131,4 +131,4 @@ class FrankaRLEnvCfg(ReachEnvCfg):
         )
 
         # general settings
-        self.episode_length_s = 2.0
+        self.episode_length_s = 64 / 30

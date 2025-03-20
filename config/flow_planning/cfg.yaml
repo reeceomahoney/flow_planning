@@ -1,5 +1,5 @@
 defaults:
-  - env: particle
+  - env: franka
   - experiment: flow_planning
   - model: unet
   - _self_

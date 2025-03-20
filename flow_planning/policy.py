@@ -87,7 +87,8 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
-        action = x[:, : self.T_action, : self.action_dim]
+        # action = x[:, : self.T_action, : self.action_dim]
+        action = torch.zeros(x.shape[0], x.shape[1], 7, device=self.device)
         return {"action": action, "obs_traj": obs}
 
     def update(self, data):
@@ -255,7 +256,8 @@ class Policy(nn.Module):
         if "action" in data:
             # train and test case
             obs = data["obs"][:, 0]
-            input = torch.cat([data["action"], data["obs"]], dim=-1)
+            # input = torch.cat([data["action"], data["obs"]], dim=-1)
+            input = data["obs"]
             input = self.normalizer.scale_output(input)
             goal = self.normalizer.scale_input(data["goal"])
         else:
@@ -283,9 +285,11 @@ class Policy(nn.Module):
         # get obs and goal
         if isinstance(self.env, RslRlVecEnvWrapper):
             obs, _ = self.env.get_observations()
-            obs = obs[0:1, 18:21]
+            # obs = obs[0:1, 18:21]
+            obs = torch.stack([obs[:1, 18], obs[:1, 20]], dim=-1)
             goal = self.env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-            goal = goal[0:1, :3]
+            # goal = goal[0:1, :3]
+            goal = torch.stack([goal[:1, 0], goal[:1, 2]], dim=-1)
             # rot_mat = matrix_from_quat(goal[:, 3:])
             # ortho6d = rot_mat[..., :2].reshape(-1, 6)
             # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)[0].unsqueeze(0)
@@ -304,13 +308,11 @@ class Policy(nn.Module):
             for i in range(len(lambdas)):
                 self.cond_lambda = lambdas[i]
                 traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-                # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
                 self._generate_plot(axes[i], traj[0], obs[0], goal[0])
 
             self.cond_lambda = 0
         else:
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-            # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
             fig, ax = plt.subplots()
             self._generate_plot(ax, traj[0], obs[0], goal[0])
 
@@ -319,10 +321,13 @@ class Policy(nn.Module):
 
     def _generate_plot(self, ax, traj, obs, goal):
         traj, obs, goal = traj.cpu(), obs.cpu(), goal.cpu()
+        # idx = 2 if isinstance(self.env, RslRlVecEnvWrapper) else 1
+        idx = 1
         marker_params = {"markersize": 10, "markeredgewidth": 3}
+
         # Plot trajectory with color gradient
         gradient = np.linspace(0, 1, len(traj))
-        ax.scatter(traj[:, 0], traj[:, 1], c=gradient, cmap="inferno")
+        ax.scatter(traj[:, 0], traj[:, idx], c=gradient, cmap="inferno")
         # Plot start and goal positions
-        ax.plot(obs[0], obs[1], "x", color="green", **marker_params)
-        ax.plot(goal[0], goal[1], "x", color="red", **marker_params)
+        ax.plot(obs[0], obs[idx], "x", color="green", **marker_params)
+        ax.plot(goal[0], goal[idx], "x", color="red", **marker_params)
