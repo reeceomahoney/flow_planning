@@ -21,10 +21,6 @@ def expand_t(tensor: Tensor, bsz: int) -> Tensor:
     return tensor.view(1, -1, 1).expand(bsz, -1, 1)
 
 
-def to_np(x: Tensor) -> np.ndarray:
-    return x.detach().cpu().numpy()
-
-
 class Policy(nn.Module):
     def __init__(
         self,
@@ -91,8 +87,7 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
-        # action = x[:, : self.T_action, : self.action_dim]
-        action = torch.zeros_like(obs[..., :2])
+        action = x[:, : self.T_action, : self.action_dim]
         return {"action": action, "obs_traj": obs}
 
     def update(self, data):
@@ -208,11 +203,11 @@ class Policy(nn.Module):
             }
             data["returns"][bsz:] = 0
 
-        x = self.inpaint(x, data)
-
         # inference
         for i in range(self.sampling_steps):
             x = torch.cat([x] * 2) if self.cond_lambda > 0 else x
+            x = self.inpaint(x, data)
+
             if self.algo == "flow":
                 x = self.step(x, timesteps[i], timesteps[i + 1], data)
             elif self.algo == "ddpm":
@@ -265,7 +260,8 @@ class Policy(nn.Module):
         if "action" in data:
             # train and test case
             obs = data["obs"]
-            input = self.normalizer.scale_output(obs)
+            input = torch.cat([data["action"], data["obs"]], dim=-1)
+            input = self.normalizer.scale_output(input)
             goal = self.normalizer.scale_goal(data["goal"][:, 0, :2])
         else:
             # sim case
@@ -325,7 +321,7 @@ class Policy(nn.Module):
         wandb.log({"Trajectory": wandb.Image(fig)}, step=it)
 
     def _generate_plot(self, ax, traj, obs, goal):
-        traj, obs, goal = to_np(traj), to_np(obs), to_np(goal)
+        traj, obs, goal = traj.cpu(), obs.cpu(), goal.cpu()
         marker_params = {"markersize": 10, "markeredgewidth": 3}
         # Plot trajectory with color gradient
         gradient = np.linspace(0, 1, len(traj))

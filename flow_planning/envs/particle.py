@@ -107,20 +107,20 @@ class ParticleEnv:
         return self.state[:, :2], rewards, dones, {}
 
     def generate_trajectories(self, trajectory_length, start_corners=None):
-        obs = torch.zeros((self.num_envs, trajectory_length, self.obs_dim), device=self.device)
-        actions = torch.zeros((self.num_envs, trajectory_length, self.act_dim), device=self.device)
+        obs = torch.zeros(
+            (self.num_envs, trajectory_length, self.obs_dim), device=self.device
+        )
+        actions = torch.zeros(
+            (self.num_envs, trajectory_length, self.act_dim), device=self.device
+        )
 
         self.reset(start_corners)
 
-        obs[:, 0, :] = self.state
-
-        for t in range(1, trajectory_length):
+        for t in range(trajectory_length):
             control = self.compute_pd_control()
+            obs[:, t, :] = self.state
             actions[:, t, :] = control
-
-            next_state = self.step(control)[0]
-
-            obs[:, t, :] = next_state
+            self.step(control)
 
         return {"obs": obs, "actions": actions}
 
