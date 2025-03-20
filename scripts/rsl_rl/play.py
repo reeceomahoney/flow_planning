@@ -67,30 +67,32 @@ import os
 import time
 
 import gymnasium as gym
+import hydra
 import torch
+
+from isaaclab_tasks.utils.parse_cfg import parse_env_cfg  # isort: skip
 from omegaconf import DictConfig, OmegaConf
 from rsl_rl.runners import OnPolicyRunner
 from tqdm import tqdm
 
-import isaac_ext.tasks  # noqa: F401
-from isaac_ext.tasks.utils.data_collector import DataCollector
-from isaaclab.envs import ManagerBasedRLEnvCfg
+import flow_planning.envs  # noqa: F401
+from flow_planning.utils import DataCollector, get_latest_run
 from isaaclab.utils.dict import print_dict
 from isaaclab_rl.rsl_rl import (
     RslRlVecEnvWrapper,
     export_policy_as_jit,
     export_policy_as_onnx,
 )
-from locodiff.utils import dynamic_hydra_main, get_latest_run
-
-task = "Isaac-Franka-RL"
 
 
-@dynamic_hydra_main(task)
-def main(agent_cfg: DictConfig, env_cfg: ManagerBasedRLEnvCfg):
-    """Play with RSL-RL agent."""
+@hydra.main(
+    version_base=None, config_path="../../config/rsl_rl", config_name="cfg.yaml"
+)
+def main(agent_cfg: DictConfig):
     # specify directory for logging experiments
-    resume_path = get_latest_run("logs/rsl_rl/franka")
+    env_name = "Isaac-Franka-RL"
+    resume_path = get_latest_run("logs/rsl_rl")
+    env_cfg = parse_env_cfg(env_name, device=agent_cfg.device)
 
     if args_cli.num_envs is not None:
         env_cfg.scene.num_envs = args_cli.num_envs
@@ -98,7 +100,7 @@ def main(agent_cfg: DictConfig, env_cfg: ManagerBasedRLEnvCfg):
 
     # create isaac environment
     env = gym.make(
-        task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None
+        env_name, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None
     )
     # wrap for video recording
     if args_cli.video:
@@ -142,7 +144,7 @@ def main(agent_cfg: DictConfig, env_cfg: ManagerBasedRLEnvCfg):
     )
 
     if args_cli.collect:
-        collector = DataCollector(env, "data/rsl_rl/franka/stitch_data.hdf5")
+        collector = DataCollector(env, "data/rsl_rl/stitch_data.hdf5")
         pbar = tqdm(total=args_cli.num_timesteps, desc="Collecting data")
 
     # reset environment
