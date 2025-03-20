@@ -92,19 +92,14 @@ class Policy(nn.Module):
 
     def update(self, data):
         data = self.process(data)
-
-        # sample noise and timestep
         x_1 = data["input"]
         x_0 = torch.randn_like(x_1)
 
+        # compute sample and target
         if self.algo == "flow":
-            # samples = self.beta_dist.sample((len(x_1), 1, 1)).to(self.device)
-            # t = 0.999 * (1 - samples)
             t = torch.rand(x_1.shape[0], 1, 1).to(self.device)
-            # compute target
             x_t = (1 - t) * x_0 + t * x_1
             target = x_1 - x_0
-
         elif self.algo == "ddpm":
             t = torch.randint(0, self.sampling_steps, (x_1.shape[0], 1)).to(self.device)
             x_t = self.scheduler.add_noise(x_1, x_0, t)  # type: ignore
@@ -259,17 +254,17 @@ class Policy(nn.Module):
 
         if "action" in data:
             # train and test case
-            obs = data["obs"]
+            obs = data["obs"][:, 0]
             input = torch.cat([data["action"], data["obs"]], dim=-1)
             input = self.normalizer.scale_output(input)
-            goal = self.normalizer.scale_goal(data["goal"][:, 0, :2])
+            goal = self.normalizer.scale_goal(data["goal"][:, :2])
         else:
             # sim case
             input = None
-            obs = data["obs"].unsqueeze(1)
+            obs = data["obs"]
             goal = self.normalizer.scale_goal(data["goal"])
 
-        obs = self.normalizer.scale_input(obs[:, 0])
+        obs = self.normalizer.scale_input(obs)
         return {"obs": obs, "input": input, "goal": goal}
 
     ###########

@@ -28,7 +28,7 @@ act_dim: null
 num_envs: 64
 
 # diffusion
-sampling_steps: 10
+sampling_steps: 64
 cond_mask_prob: 0.0
 
 policy:
@@ -42,7 +42,7 @@ policy:
   lr: 2e-4
   num_iters: ${num_iters}
   device: ${device}
-  algo: flow
+  algo: ddpm
 
 dataset:
   env_name: ${env.env_name}

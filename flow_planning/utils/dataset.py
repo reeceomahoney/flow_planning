@@ -92,9 +92,7 @@ class FlowPlanningDataset(Dataset):
         obs = self.add_padding(obs_splits, max_len, temporal=True)
         actions = self.add_padding(actions_splits, max_len, temporal=True)
         masks = self.create_masks(obs_splits, max_len)
-
-        # TODO: this is a hack, get the real last timestep
-        goal = obs[:, -1:].expand(-1, obs.shape[1], -1)
+        goal = obs[:, -1]
 
         self.data = {"obs": obs, "action": actions, "mask": masks, "goal": goal}
 
@@ -201,7 +199,7 @@ class SlicerWrapper(Dataset):
     def __getitem__(self, idx):
         i, start, end = self.slices[idx]
         x = self.dataset[i]
-        return {k: v[start:end] for k, v in x.items()}
+        return {k: v[start:end] if k != "goal" else v for k, v in x.items()}
 
 
 def get_dataloaders(
