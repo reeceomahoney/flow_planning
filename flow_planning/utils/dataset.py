@@ -52,7 +52,7 @@ class FlowPlanningDataset(Dataset):
 
         elif env_name == "Particle":
             dataset = torch.load("data/flow_planning/particle_env/dataset.pt")
-            obs = dataset["obs"][..., :2]
+            obs = dataset["obs"]
             actions = dataset["actions"]
             terminals = torch.zeros_like(obs[..., 0])
             terminals[:, -1] = 1

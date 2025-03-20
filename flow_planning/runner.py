@@ -262,6 +262,7 @@ class Runner:
             goal = goal[:, :3]
         else:
             goal = self.env.goal
+            goal = torch.cat([goal, torch.zeros_like(goal)], dim=-1)
         return goal
 
 

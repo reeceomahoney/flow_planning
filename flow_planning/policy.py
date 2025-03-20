@@ -188,7 +188,7 @@ class Policy(nn.Module):
         if self.algo == "flow":
             timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
         elif self.algo == "ddpm":
-            self.scheduler.set_timesteps(self.sampling_steps)
+            self.scheduler.set_timesteps(self.sampling_steps, self.device)
             timesteps = self.scheduler.timesteps
 
         if self.cond_lambda > 0:
@@ -257,12 +257,12 @@ class Policy(nn.Module):
             obs = data["obs"][:, 0]
             input = torch.cat([data["action"], data["obs"]], dim=-1)
             input = self.normalizer.scale_output(input)
-            goal = self.normalizer.scale_goal(data["goal"][:, :2])
+            goal = self.normalizer.scale_input(data["goal"])
         else:
             # sim case
             input = None
             obs = data["obs"]
-            goal = self.normalizer.scale_goal(data["goal"])
+            goal = self.normalizer.scale_input(data["goal"])
 
         obs = self.normalizer.scale_input(obs)
         return {"obs": obs, "input": input, "goal": goal}
@@ -275,8 +275,8 @@ class Policy(nn.Module):
         return {k: v.to(self.device) for k, v in data.items()}
 
     def inpaint(self, x: Tensor, data: dict) -> Tensor:
-        x[:, 0, self.action_dim : self.action_dim + 2] = data["obs"][:, :2]
-        x[:, -1, self.action_dim : self.action_dim + 2] = data["goal"]
+        x[:, 0, self.action_dim :] = data["obs"]
+        x[:, -1, self.action_dim :] = data["goal"]
         return x
 
     def plot_trajectory(self, it: int):
@@ -290,9 +290,11 @@ class Policy(nn.Module):
             # ortho6d = rot_mat[..., :2].reshape(-1, 6)
             # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)[0].unsqueeze(0)
         else:
-            obs = torch.zeros((1, 2), device=self.device)
-            goal = torch.zeros((1, 2), device=self.device)
+            obs = torch.zeros((1, 4), device=self.device)
+            goal = torch.zeros((1, 4), device=self.device)
             goal[0, 0] = 1.0
+            goal[0, 2] = 0.6
+            goal[0, 3] = -0.6
 
         # plot trajectory
         if self.cond_lambda > 0:
