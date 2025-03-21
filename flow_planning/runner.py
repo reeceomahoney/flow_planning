@@ -7,6 +7,7 @@ from collections import deque
 import hydra
 import torch
 import wandb
+from omegaconf import OmegaConf
 from rsl_rl.utils import store_code_state
 from tqdm import tqdm, trange
 
@@ -61,8 +62,13 @@ class Runner:
         # logging
         if self.log_dir is not None:
             # initialize wandb
+            wandb.config = OmegaConf.to_container(
+                agent_cfg, resolve=True, throw_on_missing=True
+            )
             wandb.init(
-                project=self.cfg.experiment.wandb_project, dir=log_dir, config=self.cfg
+                project=self.cfg.experiment.wandb_project,
+                dir=log_dir,
+                config=wandb.config,  # type: ignore
             )
             # make model directory
             os.makedirs(os.path.join(log_dir, "models"), exist_ok=True)  # type: ignore
@@ -100,7 +106,7 @@ class Runner:
                 ) as pbar:
                     while t < self.num_steps_per_env:
                         goal = self.get_goal()
-                        obs = torch.stack([obs[..., 18], obs[..., 20]], dim=-1)
+                        # obs = torch.stack([obs[..., 18], obs[..., 20]], dim=-1)
                         actions = self.policy.act({"obs": obs, "goal": goal})["action"]
 
                         # step the environment
