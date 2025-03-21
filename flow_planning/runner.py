@@ -106,7 +106,7 @@ class Runner:
                 ) as pbar:
                     while t < self.num_steps_per_env:
                         goal = self.get_goal()
-                        # obs = torch.stack([obs[..., 18], obs[..., 20]], dim=-1)
+                        obs = torch.stack([obs[..., 18], obs[..., 20]], dim=-1)
                         actions = self.policy.act({"obs": obs, "goal": goal})["action"]
 
                         # step the environment

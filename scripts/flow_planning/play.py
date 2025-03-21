@@ -118,7 +118,7 @@ def main(agent_cfg: DictConfig):
         env_cfg.sim.device = agent_cfg.device
         # create isaac environment
         env = gym.make(env_name, cfg=env_cfg, render_mode=None)
-        agent_cfg.obs_dim = 3
+        agent_cfg.obs_dim = 2
         agent_cfg.act_dim = 0
         env = RslRlVecEnvWrapper(env)  # type: ignore
         # create trajectory visualizer

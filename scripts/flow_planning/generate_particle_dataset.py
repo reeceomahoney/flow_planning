@@ -25,8 +25,8 @@ env = ParticleEnv(
     process_noise=0.02,
     measurement_noise=0.01,
     init_pos_var=0.05,
-    kp=2.0,
-    kd=1.0,
+    kp=1.0,
+    kd=0.5,
     dt=0.05,
     seed=42,
     device=device,
@@ -35,7 +35,7 @@ env = ParticleEnv(
 start_time = time.time()
 dataset = env.generate_dataset(
     num_samples=10000,
-    trajectory_length=32,
+    trajectory_length=64,
     save_path=save_path,
 )
 print(

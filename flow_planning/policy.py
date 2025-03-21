@@ -102,7 +102,9 @@ class Policy(nn.Module):
             x_t = (1 - t) * x_0 + t * x_1
             target = x_1 - x_0
         elif self.algo == "ddpm":
-            t = torch.randint(0, self.sampling_steps, (x_1.shape[0], 1)).to(self.device)
+            t = torch.randint(0, self.sampling_steps, (x_1.shape[0], 1, 1)).to(
+                self.device
+            )
             x_t = self.scheduler.add_noise(x_1, x_0, t)  # type: ignore
             target = x_0
 
@@ -207,7 +209,7 @@ class Policy(nn.Module):
             if self.algo == "flow":
                 x = self.step(x, timesteps[i], timesteps[i + 1], data)
             elif self.algo == "ddpm":
-                t = timesteps[i].view(-1, 1).expand(bsz, 1).float()
+                t = timesteps[i].view(-1, 1, 1).expand(bsz, 1, 1).float()
                 out = self.model(x, t, data)
                 x = self.scheduler.step(out, timesteps[i], x).prev_sample  # type: ignore
 

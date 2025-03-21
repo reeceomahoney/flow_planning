@@ -12,6 +12,7 @@ from collections.abc import Sequence
 import torch
 from omegaconf import MISSING
 
+import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation
 from isaaclab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from isaaclab.managers import CommandTerm
@@ -124,6 +125,11 @@ class ScheduledPoseCommand(CommandTerm):
             if self.cycle_envs[env_id]:
                 # Cycle through commands
                 fixed_command = self.cfg.fixed_commands[self.current_stage]
+                fixed_command = torch.tensor(fixed_command, device=self.device)
+                position_range = (0.8, 1.2)
+                fixed_command *= math_utils.sample_uniform(
+                    *position_range, fixed_command.shape, fixed_command.device
+                )
                 self.pose_command_b[env_id, 0] = fixed_command[0]
                 self.pose_command_b[env_id, 1] = fixed_command[1]
                 self.pose_command_b[env_id, 2] = fixed_command[2]
