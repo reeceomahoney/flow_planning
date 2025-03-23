@@ -287,11 +287,9 @@ class Policy(nn.Module):
         # get obs and goal
         if isinstance(self.env, RslRlVecEnvWrapper):
             obs, _ = self.env.get_observations()
-            # obs = obs[0:1, 18:21]
-            obs = torch.stack([obs[:1, 18], obs[:1, 20]], dim=-1)
+            obs = obs[0:1, 18:21]
             goal = self.env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-            # goal = goal[0:1, :3]
-            goal = torch.stack([goal[:1, 0], goal[:1, 2]], dim=-1)
+            goal = goal[0:1, :3]
             # rot_mat = matrix_from_quat(goal[:, 3:])
             # ortho6d = rot_mat[..., :2].reshape(-1, 6)
             # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)[0].unsqueeze(0)
@@ -323,8 +321,7 @@ class Policy(nn.Module):
 
     def _generate_plot(self, ax, traj, obs, goal):
         traj, obs, goal = traj.cpu(), obs.cpu(), goal.cpu()
-        # idx = 2 if isinstance(self.env, RslRlVecEnvWrapper) else 1
-        idx = 1
+        idx = 2 if isinstance(self.env, RslRlVecEnvWrapper) else 1
         marker_params = {"markersize": 10, "markeredgewidth": 3}
 
         # Plot trajectory with color gradient

@@ -91,7 +91,7 @@ def main(agent_cfg: DictConfig):
         # create isaac environment
         env = gym.make(env_name, cfg=env_cfg, render_mode=None)
         env = RslRlVecEnvWrapper(env)  # type: ignore
-        agent_cfg.obs_dim = 2
+        agent_cfg.obs_dim = 3
         agent_cfg.act_dim = 0
 
     ### Create runner
