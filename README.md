@@ -6,3 +6,4 @@
 - [x] Simplify unet
 - [ ] Fix value unet
 - [ ] simplify normalizer
+- [ ] Add data viz script

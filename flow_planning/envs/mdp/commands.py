@@ -126,10 +126,13 @@ class ScheduledPoseCommand(CommandTerm):
                 # Cycle through commands
                 fixed_command = self.cfg.fixed_commands[self.current_stage]
                 fixed_command = torch.tensor(fixed_command, device=self.device)
-                # position_range = (0.8, 1.2)
+
+                # add noise
+                # position_range = (0.9, 1.1)
                 # fixed_command *= math_utils.sample_uniform(
                 #     *position_range, fixed_command.shape, fixed_command.device
                 # )
+
                 self.pose_command_b[env_id, 0] = fixed_command[0]
                 self.pose_command_b[env_id, 1] = fixed_command[1]
                 self.pose_command_b[env_id, 2] = fixed_command[2]

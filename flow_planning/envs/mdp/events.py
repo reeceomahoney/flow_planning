@@ -52,8 +52,6 @@ def reset_joints_fixed(
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
-    position_range = (0.8, 1.2)
-    velocity_range = (0.0, 0.0)
 
     pos_list = [
         [
@@ -92,6 +90,8 @@ def reset_joints_fixed(
     joint_vel = torch.zeros_like(joint_vel)
 
     # add noise
+    # position_range = (0.95, 1.05)
+    # velocity_range = (0.0, 0.0)
     # joint_pos *= math_utils.sample_uniform(
     #     *position_range, joint_pos.shape, joint_pos.device
     # )
