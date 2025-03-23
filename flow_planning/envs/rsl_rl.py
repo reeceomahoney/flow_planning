@@ -11,6 +11,8 @@ from isaaclab_tasks.manager_based.manipulation.reach.reach_env_cfg import (
 
 from . import mdp
 
+T_MAX = 64 / 30
+
 ##
 # MDP settings
 ##
@@ -38,12 +40,9 @@ class CommandsCfg:
     ee_pose = mdp.ScheduledPoseCommandCfg(
         asset_name="robot",
         body_name="panda_hand",
-        resampling_time_range=(2.0, 2.0),
+        resampling_time_range=(T_MAX, T_MAX),
         debug_vis=True,
-        fixed_commands=[
-            (0.8, 0, 0.6),
-            (0.8, 0, 0.2),
-        ],
+        fixed_commands=[(0.8, 0, 0.6), (0.8, 0, 0.2)],
     )
 
 
@@ -131,4 +130,4 @@ class FrankaRLEnvCfg(ReachEnvCfg):
         )
 
         # general settings
-        self.episode_length_s = 64 / 30
+        self.episode_length_s = T_MAX

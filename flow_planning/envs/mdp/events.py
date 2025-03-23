@@ -92,12 +92,12 @@ def reset_joints_fixed(
     joint_vel = torch.zeros_like(joint_vel)
 
     # add noise
-    joint_pos *= math_utils.sample_uniform(
-        *position_range, joint_pos.shape, joint_pos.device
-    )
-    joint_vel *= math_utils.sample_uniform(
-        *velocity_range, joint_vel.shape, joint_vel.device
-    )
+    # joint_pos *= math_utils.sample_uniform(
+    #     *position_range, joint_pos.shape, joint_pos.device
+    # )
+    # joint_vel *= math_utils.sample_uniform(
+    #     *velocity_range, joint_vel.shape, joint_vel.device
+    # )
 
     # set into the physics simulation
     asset.write_joint_state_to_sim(
