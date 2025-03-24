@@ -1,8 +1,13 @@
 import math
 
+import gymnasium as gym
 import torch
 import torch.nn as nn
 from torch import Tensor
+
+from flow_planning.envs import MazeEnv, ParticleEnv
+from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
+from isaaclab_tasks.utils import parse_env_cfg
 
 
 def check_collisions(traj: Tensor) -> Tensor:
@@ -24,6 +29,39 @@ def calculate_return(
     rewards[:, -1] = 1 - torch.exp(-torch.norm(traj[:, -1] - goal.unsqueeze(0), dim=-1))
     return rewards.unsqueeze(-1)
     # return ((reward * mask) * gammas).sum(dim=-1, keepdim=True)
+
+
+def create_env(env_name, agent_cfg):
+    match env_name:
+        case "Maze":
+            env = MazeEnv(agent_cfg)
+            agent_cfg.obs_dim = env.obs_dim
+            agent_cfg.act_dim = env.act_dim
+            env_cfg = None
+        case "Particle":
+            env = ParticleEnv(
+                num_envs=agent_cfg.num_envs,
+                seed=agent_cfg.seed,
+                device=agent_cfg.device,
+            )
+            agent_cfg.obs_dim = env.obs_dim
+            agent_cfg.act_dim = env.act_dim
+            env_cfg = None
+        case _:
+            env_cfg = parse_env_cfg(
+                env_name, device=agent_cfg.device, num_envs=agent_cfg.num_envs
+            )
+            # override config values
+            env_cfg.scene.num_envs = agent_cfg.num_envs
+            env_cfg.seed = agent_cfg.seed
+            env_cfg.sim.device = agent_cfg.device
+            # create isaac environment
+            env = gym.make(env_name, cfg=env_cfg, render_mode=None)
+            env = RslRlVecEnvWrapper(env)  # type: ignore
+            agent_cfg.obs_dim = 3
+            agent_cfg.act_dim = env.num_actions
+
+    return env, agent_cfg, env_cfg
 
 
 class SinusoidalPosEmb(nn.Module):

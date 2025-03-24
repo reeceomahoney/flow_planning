@@ -36,7 +36,6 @@ import random
 import sys
 import time
 
-import gymnasium as gym
 import hydra
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,15 +44,12 @@ from omegaconf import DictConfig
 
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
-from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.runner import Runner
-from flow_planning.utils import get_latest_run
+from flow_planning.utils import create_env, get_latest_run
 from isaaclab.markers.visualization_markers import (
     VisualizationMarkers,
     VisualizationMarkersCfg,
 )
-from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
-from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
 
 def interpolate_color(t):
@@ -94,34 +90,12 @@ def main(agent_cfg: DictConfig):
     torch.manual_seed(agent_cfg.seed)
 
     ### Create environment
-    env_name = agent_cfg.env.env_name
     agent_cfg.num_envs = 1
+    env_name = agent_cfg.env.env_name
+    env, agent_cfg, _ = create_env(env_name, agent_cfg)
 
-    if env_name == "Maze":
-        # create maze environment
-        env = MazeEnv(agent_cfg)
-        agent_cfg.obs_dim = env.obs_dim
-        agent_cfg.act_dim = env.act_dim
-    elif env_name == "Particle":
-        env = ParticleEnv(
-            num_envs=agent_cfg.num_envs, seed=agent_cfg.seed, device=agent_cfg.device
-        )
-        agent_cfg.obs_dim = 2
-        agent_cfg.act_dim = env.act_dim
-    else:
-        env_cfg = parse_env_cfg(
-            env_name, device=agent_cfg.device, num_envs=agent_cfg.num_envs
-        )
-        # override config values
-        env_cfg.scene.num_envs = agent_cfg.num_envs
-        env_cfg.seed = agent_cfg.seed
-        env_cfg.sim.device = agent_cfg.device
-        # create isaac environment
-        env = gym.make(env_name, cfg=env_cfg, render_mode=None)
-        agent_cfg.obs_dim = 2
-        agent_cfg.act_dim = 0
-        env = RslRlVecEnvWrapper(env)  # type: ignore
-        # create trajectory visualizer
+    # create trajectory visualizer
+    if env_name.startswith("Isaac"):
         trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     # load model runner
@@ -140,30 +114,32 @@ def main(agent_cfg: DictConfig):
         start = time.time()
 
         # get goal
-        # goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
+        goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
+        goal = goal[:, :3]
         # rot_mat = matrix_from_quat(goal[:, 3:])
         # ortho6d = rot_mat[..., :2].reshape(-1, 6)
         # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
 
-        obs = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
-        goal = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
-        goal[0, 0] = 1
+        # obs = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
+        # goal = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
+        # goal[0, 0] = 1
         # goal[0, 1] = 1
 
         # plot trajectory
         if args_cli.plot:
             # lambdas = [0, 1, 2, 5, 10]
+            obs = obs[:, 18:21]
             traj = runner.policy.act({"obs": obs, "goal": goal})["obs_traj"]
-            # traj = torch.cat([traj[0, :, 0:1], traj[0, :, 2:3]], dim=-1)
-            fig, ax = plt.subplots()
+            _, ax = plt.subplots()
             runner.policy._generate_plot(ax, traj[0], goal[0], obs[0])
-            plt.savefig("data.png")
+            plt.show()
             simulation_app.close()
             exit()
 
         # agent stepping
         output = runner.policy.act({"obs": obs, "goal": goal})
-        trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
+        if env_name.startswith("Isaac"):
+            trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
 
         # env stepping
         for i in range(runner.policy.T_action):
@@ -181,6 +157,5 @@ def main(agent_cfg: DictConfig):
 if __name__ == "__main__":
     sys.argv.append("hydra.output_subdir=null")
     sys.argv.append("hydra.run.dir=.")
-    # torch.set_printoptions(precision=1, threshold=1000000, linewidth=500)
     main()
     simulation_app.close()

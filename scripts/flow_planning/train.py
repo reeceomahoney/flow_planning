@@ -31,7 +31,6 @@ import logging
 import os
 import random
 
-import gymnasium as gym
 import hydra
 import numpy as np
 import torch
@@ -39,11 +38,9 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
 import flow_planning.envs  # noqa: F401,
-from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.runner import ClassifierRunner, Runner
+from flow_planning.utils import create_env
 from isaaclab.utils.io import dump_pickle, dump_yaml
-from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
-from isaaclab_tasks.utils import parse_env_cfg
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -66,36 +63,11 @@ def main(agent_cfg: DictConfig):
     np.random.seed(agent_cfg.seed)
     torch.manual_seed(agent_cfg.seed)
 
-    ### Create environment
+    # create environment
     env_name = agent_cfg.env.env_name
+    env, agent_cfg, env_cfg = create_env(env_name, agent_cfg)
 
-    if env_name == "Maze":
-        # create maze environment
-        env = MazeEnv(agent_cfg)
-        agent_cfg.obs_dim = env.obs_dim
-        agent_cfg.act_dim = env.act_dim
-    elif env_name == "Particle":
-        env = ParticleEnv(
-            num_envs=agent_cfg.num_envs, seed=agent_cfg.seed, device=agent_cfg.device
-        )
-        agent_cfg.obs_dim = env.obs_dim
-        agent_cfg.act_dim = env.act_dim
-    else:
-        env_cfg = parse_env_cfg(
-            env_name, device=agent_cfg.device, num_envs=agent_cfg.num_envs
-        )
-        # override config values
-        env_cfg.scene.num_envs = agent_cfg.num_envs
-        env_cfg.seed = agent_cfg.seed
-        env_cfg.sim.device = agent_cfg.device
-        # create isaac environment
-        env = gym.make(env_name, cfg=env_cfg, render_mode=None)
-        env = RslRlVecEnvWrapper(env)  # type: ignore
-        agent_cfg.obs_dim = 3
-        agent_cfg.act_dim = env.num_actions
-
-    ### Create runner
-
+    # create runner
     if env_name == "Isaac-Franka-Guidance":
         runner = ClassifierRunner(
             env, agent_cfg, log_dir=log_dir, device=agent_cfg.device
