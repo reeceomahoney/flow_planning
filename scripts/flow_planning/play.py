@@ -120,7 +120,7 @@ def main(agent_cfg: DictConfig):
             # lambdas = [0, 1, 2, 5, 10]
             traj = output["obs_traj"]
             _, ax = plt.subplots()
-            runner.policy._generate_plot(ax, traj[0], goal[0], obs[0])
+            runner.policy._generate_plot(ax, traj[0], obs[0, 18:21], goal[0])
             plt.show()
             simulation_app.close()
             exit()

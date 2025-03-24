@@ -301,7 +301,7 @@ class Policy(nn.Module):
         else:
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
             fig, ax = plt.subplots()
-            self._generate_plot(ax, traj[0], obs[0], goal[0])
+            self._generate_plot(ax, traj[0], obs[0, 18:21], goal[0])
 
         fig.tight_layout()
         wandb.log({"Trajectory": wandb.Image(fig)}, step=it)
