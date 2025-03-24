@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.models.transformer import DiffusionTransformer
-from flow_planning.utils import Normalizer
+from flow_planning.utils import Normalizer, get_goal
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
@@ -84,6 +84,7 @@ class Policy(nn.Module):
 
     @torch.no_grad()
     def act(self, data: dict) -> dict[str, torch.Tensor]:
+        data["obs"] = data["obs"][:, 18:21]
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
@@ -283,20 +284,8 @@ class Policy(nn.Module):
 
     def plot_trajectory(self, it: int):
         # get obs and goal
-        if isinstance(self.env, RslRlVecEnvWrapper):
-            obs, _ = self.env.get_observations()
-            obs = obs[0:1, 18:21]
-            goal = self.env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-            goal = goal[0:1, :3]
-            # rot_mat = matrix_from_quat(goal[:, 3:])
-            # ortho6d = rot_mat[..., :2].reshape(-1, 6)
-            # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)[0].unsqueeze(0)
-        else:
-            obs = torch.zeros((1, 4), device=self.device)
-            goal = torch.zeros((1, 4), device=self.device)
-            goal[0, 0] = 1.0
-            goal[0, 2] = 0.6
-            goal[0, 3] = -0.6
+        obs, _ = self.env.get_observations()
+        goal = get_goal(self.env)
 
         # plot trajectory
         if self.cond_lambda > 0:

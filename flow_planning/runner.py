@@ -18,6 +18,7 @@ from flow_planning.utils import (
     InferenceContext,
     Normalizer,
     get_dataloaders,
+    get_goal,
 )
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
@@ -105,8 +106,7 @@ class Runner:
                     total=self.num_steps_per_env, desc="Simulating...", leave=False
                 ) as pbar:
                     while t < self.num_steps_per_env:
-                        goal = self.get_goal()
-                        obs = obs[..., 18:21]
+                        goal = get_goal(self.env)
                         actions = self.policy.act({"obs": obs, "goal": goal})["action"]
 
                         # step the environment
@@ -259,18 +259,6 @@ class Runner:
 
     def process_ep_data(self, x, new_ids):
         return x[new_ids][:, 0].detach().cpu().numpy().tolist()
-
-    def get_goal(self):
-        if isinstance(self.env, RslRlVecEnvWrapper):
-            goal = self.env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-            # rot_mat = matrix_from_quat(goal[:, 3:])
-            # ortho6d = rot_mat[..., :2].reshape(-1, 6)
-            # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
-            goal = goal[:, :3]
-        else:
-            goal = self.env.goal
-            goal = torch.cat([goal, torch.zeros_like(goal)], dim=-1)
-        return goal
 
 
 class ClassifierRunner(Runner):

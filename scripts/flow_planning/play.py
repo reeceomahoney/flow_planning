@@ -45,7 +45,7 @@ from omegaconf import DictConfig
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
 from flow_planning.runner import Runner
-from flow_planning.utils import create_env, get_latest_run
+from flow_planning.utils import create_env, get_goal, get_latest_run
 from isaaclab.markers.visualization_markers import (
     VisualizationMarkers,
     VisualizationMarkersCfg,
@@ -109,35 +109,22 @@ def main(agent_cfg: DictConfig):
 
     # reset environment
     obs, _ = env.get_observations()
+    start = time.time()
     # simulate environment
     while simulation_app.is_running():
-        start = time.time()
-
-        # get goal
-        goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-        goal = goal[:, :3]
-        # rot_mat = matrix_from_quat(goal[:, 3:])
-        # ortho6d = rot_mat[..., :2].reshape(-1, 6)
-        # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
-
-        # obs = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
-        # goal = torch.zeros(1, agent_cfg.obs_dim).to(agent_cfg.device)
-        # goal[0, 0] = 1
-        # goal[0, 1] = 1
+        goal = get_goal(env)
+        output = runner.policy.act({"obs": obs, "goal": goal})
 
         # plot trajectory
         if args_cli.plot:
             # lambdas = [0, 1, 2, 5, 10]
-            obs = obs[:, 18:21]
-            traj = runner.policy.act({"obs": obs, "goal": goal})["obs_traj"]
+            traj = output["obs_traj"]
             _, ax = plt.subplots()
             runner.policy._generate_plot(ax, traj[0], goal[0], obs[0])
             plt.show()
             simulation_app.close()
             exit()
 
-        # agent stepping
-        output = runner.policy.act({"obs": obs, "goal": goal})
         if env_name.startswith("Isaac"):
             trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
 

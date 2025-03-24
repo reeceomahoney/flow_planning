@@ -64,6 +64,22 @@ def create_env(env_name, agent_cfg):
     return env, agent_cfg, env_cfg
 
 
+def get_goal(env):
+    if isinstance(env, RslRlVecEnvWrapper):
+        goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
+        goal = goal[:, :3]
+        # rot_mat = matrix_from_quat(goal[:, 3:])
+        # ortho6d = rot_mat[..., :2].reshape(-1, 6)
+        # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
+    else:
+        goal = env.goal
+        goal = torch.cat([goal, torch.zeros_like(goal)], dim=-1)
+        goal[0, 0] = 1.0
+        goal[0, 2] = 0.6
+        goal[0, 3] = -0.6
+    return goal
+
+
 class SinusoidalPosEmb(nn.Module):
     def __init__(self, dim, device):
         super().__init__()
