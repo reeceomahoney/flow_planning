@@ -87,8 +87,7 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
-        # action = x[:, : self.T_action, : self.action_dim]
-        action = torch.zeros(x.shape[0], x.shape[1], 7, device=self.device)
+        action = x[:, : self.T_action, : self.action_dim]
         return {"action": action, "obs_traj": obs}
 
     def update(self, data):
@@ -258,8 +257,7 @@ class Policy(nn.Module):
         if "action" in data:
             # train and test case
             obs = data["obs"][:, 0]
-            # input = torch.cat([data["action"], data["obs"]], dim=-1)
-            input = data["obs"]
+            input = torch.cat([data["action"], data["obs"]], dim=-1)
             input = self.normalizer.scale_output(input)
             goal = self.normalizer.scale_input(data["goal"])
         else:
