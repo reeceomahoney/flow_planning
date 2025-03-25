@@ -243,15 +243,11 @@ def get_dataloaders(
     dl = train_dataloader.dataset.dataset.dataset  # type: ignore
     use_value_range = False
     if use_value_range:
-        gammas = torch.tensor([0.99**i for i in range(T)])
+        # gammas = torch.tensor([0.99**i for i in range(T)])
         returns = []
         for batch in train_dataloader:
             obs = batch["obs"]
-            mask = batch["mask"]
-            goal = batch["goal"]
-            returns.append(
-                calculate_return(obs[..., 18:21], obs[:, 0, 18:21], goal, mask, gammas)
-            )
+            returns.append(calculate_return(obs[..., 18:21]))
         returns = torch.cat(returns)
         dl.r_max = returns.max()
         dl.r_min = returns.min()

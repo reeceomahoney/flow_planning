@@ -18,17 +18,9 @@ def check_collisions(traj: Tensor) -> Tensor:
     return ~(x_mask & y_mask & z_mask)
 
 
-def calculate_return(
-    traj: Tensor, obs: Tensor, goal: Tensor, mask: Tensor, gammas: Tensor
-) -> Tensor:
-    obs = torch.tensor([0.4, 0.0, 0.6]).to(traj.device)
-    goal = torch.tensor([0.8, 0.0, 0.6]).to(traj.device)
-
-    rewards = torch.zeros_like(traj[..., 0])
-    rewards[:, 0] = 1 - torch.exp(-torch.norm(traj[:, 0] - obs.unsqueeze(0), dim=-1))
-    rewards[:, -1] = 1 - torch.exp(-torch.norm(traj[:, -1] - goal.unsqueeze(0), dim=-1))
-    return rewards.unsqueeze(-1)
-    # return ((reward * mask) * gammas).sum(dim=-1, keepdim=True)
+def calculate_return(traj: Tensor) -> Tensor:
+    vels = -(traj[:, 1:] - traj[:, :-1]).norm(dim=-1)
+    return vels.sum(dim=-1, keepdim=True)
 
 
 def create_env(env_name, agent_cfg):

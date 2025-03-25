@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.models.transformer import DiffusionTransformer
-from flow_planning.utils import Normalizer, get_goal
+from flow_planning.utils import Normalizer, calculate_return, get_goal
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
@@ -261,14 +261,16 @@ class Policy(nn.Module):
             input = torch.cat([data["action"], data["obs"]], dim=-1)
             input = self.normalizer.scale_output(input)
             goal = self.normalizer.scale_input(data["goal"])
+            returns = calculate_return(data["obs"])
         else:
             # sim case
             input = None
             obs = data["obs"]
             goal = self.normalizer.scale_input(data["goal"])
+            returns = torch.ones(obs.shape[0], 1).to(self.device)
 
         obs = self.normalizer.scale_input(obs)
-        return {"obs": obs, "input": input, "goal": goal}
+        return {"obs": obs, "input": input, "goal": goal, "returns": returns}
 
     ###########
     # Helpers #
@@ -288,23 +290,26 @@ class Policy(nn.Module):
         goal = get_goal(self.env)
 
         # plot trajectory
-        if self.cond_lambda > 0:
+        if self.cond_mask_prob > 0:
             lambdas = [0, 1, 2, 5, 10]
             fig, axes = plt.subplots(1, len(lambdas), figsize=(len(lambdas) * 4, 4))
 
             for i in range(len(lambdas)):
                 self.cond_lambda = lambdas[i]
                 traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-                self._generate_plot(axes[i], traj[0], obs[0], goal[0])
+                self._generate_plot(axes[i], traj[0], obs[0, 18:21], goal[0])
+                axes[i].set_title(f"Lambda: {lambdas[i]}")
 
             self.cond_lambda = 0
+            fig.tight_layout()
+            wandb.log({"Guided Trajectory": wandb.Image(fig)}, step=it)
         else:
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
             fig, ax = plt.subplots()
             self._generate_plot(ax, traj[0], obs[0, 18:21], goal[0])
 
-        fig.tight_layout()
-        wandb.log({"Trajectory": wandb.Image(fig)}, step=it)
+            fig.tight_layout()
+            wandb.log({"Trajectory": wandb.Image(fig)}, step=it)
 
     def _generate_plot(self, ax, traj, obs, goal):
         traj, obs, goal = traj.cpu(), obs.cpu(), goal.cpu()
