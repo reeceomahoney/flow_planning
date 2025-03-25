@@ -1,3 +1,5 @@
+import math
+
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
@@ -22,28 +24,28 @@ T_MAX = 64 / 30
 class CommandsCfg:
     """Command terms for the MDP."""
 
-    # ee_pose = mdp.UniformPoseCommandCfg(
-    #     asset_name="robot",
-    #     body_name="panda_hand",
-    #     resampling_time_range=(2.0, 2.0),
-    #     debug_vis=True,
-    #     ranges=mdp.UniformPoseCommandCfg.Ranges(
-    #         pos_x=(0.35, 1),
-    #         pos_y=(-0.5, 0.5),
-    #         pos_z=(0.15, 0.9),
-    #         roll=(0.0, 0.0),
-    #         pitch=(math.pi, math.pi),
-    #         yaw=(-math.pi, math.pi),
-    #     ),
-    # )
-
-    ee_pose = mdp.ScheduledPoseCommandCfg(
+    ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name="panda_hand",
         resampling_time_range=(T_MAX, T_MAX),
         debug_vis=True,
-        fixed_commands=[(0.8, 0, 0.6), (0.8, 0, 0.2)],
+        ranges=mdp.UniformPoseCommandCfg.Ranges(
+            pos_x=(0.35, 1),
+            pos_y=(-0.5, 0.5),
+            pos_z=(0.15, 0.9),
+            roll=(0.0, 0.0),
+            pitch=(math.pi, math.pi),
+            yaw=(-math.pi, math.pi),
+        ),
     )
+
+    # ee_pose = mdp.ScheduledPoseCommandCfg(
+    #     asset_name="robot",
+    #     body_name="panda_hand",
+    #     resampling_time_range=(T_MAX, T_MAX),
+    #     debug_vis=True,
+    #     fixed_commands=[(0.8, 0, 0.6), (0.8, 0, 0.2)],
+    # )
 
 
 @configclass
@@ -84,8 +86,9 @@ class EventCfg:
     """Configuration for events."""
 
     reset_robot_joints = EventTermCfg(
-        func=mdp.reset_joints_fixed,
+        func=mdp.reset_joints_by_scale,
         mode="reset",
+        params={"position_range": (0.5, 1.5), "velocity_range": (0.0, 0.0)},
     )
 
 
