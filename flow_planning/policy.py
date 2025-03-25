@@ -84,7 +84,7 @@ class Policy(nn.Module):
 
     @torch.no_grad()
     def act(self, data: dict) -> dict[str, torch.Tensor]:
-        data["obs"] = data["obs"][:, 18:21]
+        data["obs"] = data["obs"][:, 18:27]
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]

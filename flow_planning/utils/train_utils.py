@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from flow_planning.envs import MazeEnv, ParticleEnv
+from isaaclab.utils.math import matrix_from_quat
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 from isaaclab_tasks.utils import parse_env_cfg
 
@@ -50,7 +51,7 @@ def create_env(env_name, agent_cfg):
             # create isaac environment
             env = gym.make(env_name, cfg=env_cfg, render_mode=None)
             env = RslRlVecEnvWrapper(env)  # type: ignore
-            agent_cfg.obs_dim = 3
+            agent_cfg.obs_dim = 9
             agent_cfg.act_dim = env.num_actions
 
     return env, agent_cfg, env_cfg
@@ -59,10 +60,9 @@ def create_env(env_name, agent_cfg):
 def get_goal(env):
     if isinstance(env, RslRlVecEnvWrapper):
         goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-        goal = goal[:, :3]
-        # rot_mat = matrix_from_quat(goal[:, 3:])
-        # ortho6d = rot_mat[..., :2].reshape(-1, 6)
-        # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
+        rot_mat = matrix_from_quat(goal[:, 3:])
+        ortho6d = rot_mat[..., :2].reshape(-1, 6)
+        goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
     else:
         goal = env.goal
         goal = torch.cat([goal, torch.zeros_like(goal)], dim=-1)

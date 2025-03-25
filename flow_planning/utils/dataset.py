@@ -42,7 +42,7 @@ class FlowPlanningDataset(Dataset):
             obs = data["observations"]
             # remove commands
             # obs = torch.cat([obs[..., :27], obs[..., 34:]], dim=-1)
-            obs = obs[..., 18:21]
+            obs = obs[..., 18:27]
             actions = data["actions"]
             terminals = data["terminals"]
             split_indices = torch.where(terminals.flatten() == 1)[0] + 1
