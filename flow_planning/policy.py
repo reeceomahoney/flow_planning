@@ -260,17 +260,17 @@ class Policy(nn.Module):
             obs = data["obs"][:, 0]
             input = torch.cat([data["action"], data["obs"]], dim=-1)
             input = self.normalizer.scale_output(input)
-            goal = self.normalizer.scale_input(data["goal"])
             returns = calculate_return(data["obs"])
             returns = self.normalizer.scale_return(returns)
         else:
             # sim case
             input = None
             obs = data["obs"]
-            goal = self.normalizer.scale_input(data["goal"])
             returns = torch.ones(obs.shape[0], 1).to(self.device)
 
         obs = self.normalizer.scale_input(obs)
+        goal = self.normalizer.scale_input(data["goal"])
+
         return {"obs": obs, "input": input, "goal": goal, "returns": returns}
 
     ###########
