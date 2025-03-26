@@ -117,10 +117,15 @@ def main(agent_cfg: DictConfig):
 
         # plot trajectory
         if args_cli.plot:
-            # lambdas = [0, 1, 2, 5, 10]
-            traj = output["obs_traj"]
-            _, ax = plt.subplots()
-            runner.policy._generate_plot(ax, traj[0], obs[0, 18:21], goal[0])
+            lambdas = [0, 1, 2, 5, 10]
+            _, axes = plt.subplots(1, len(lambdas), figsize=(len(lambdas) * 4, 4))
+
+            for i in range(len(lambdas)):
+                runner.policy.alpha = lambdas[i]
+                traj = runner.policy.act({"obs": obs, "goal": goal})["obs_traj"]
+                runner.policy._generate_plot(axes[i], traj[0], obs[0, 18:21], goal[0])
+                axes[i].set_title(f"Lambda: {lambdas[i]}")
+
             plt.show()
             simulation_app.close()
             exit()
