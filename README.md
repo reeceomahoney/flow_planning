@@ -4,6 +4,6 @@
 - [x] Refactor configs
 - [x] Parallelise 2d dataset
 - [x] Simplify unet
-- [ ] Fix value unet
+- [x] Fix value unet
 - [ ] simplify normalizer
 - [ ] Add data viz script

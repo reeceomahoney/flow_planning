@@ -262,6 +262,7 @@ class Policy(nn.Module):
             input = self.normalizer.scale_output(input)
             goal = self.normalizer.scale_input(data["goal"])
             returns = calculate_return(data["obs"])
+            returns = self.normalizer.scale_return(returns)
         else:
             # sim case
             input = None

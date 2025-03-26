@@ -17,7 +17,7 @@ class FlowPlanningDataset(Dataset):
         self.T = T
         self.device = device
 
-        if env_name == "Isaac-Franka-FlowPlanning":
+        if env_name.startswith("Isaac"):
             # build path
             current_dir = os.path.dirname(os.path.realpath(__file__))
             data_directory = "/data/rsl_rl/stitch_data.hdf5"
@@ -247,7 +247,7 @@ def get_dataloaders(
         returns = []
         for batch in train_dataloader:
             obs = batch["obs"]
-            returns.append(calculate_return(obs[..., 18:21]))
+            returns.append(calculate_return(obs))
         returns = torch.cat(returns)
         dl.r_max = returns.max()
         dl.r_min = returns.min()

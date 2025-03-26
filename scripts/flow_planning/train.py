@@ -65,14 +65,17 @@ def main(agent_cfg: DictConfig):
 
     # create environment
     env_name = agent_cfg.env.env_name
+    experiment = agent_cfg.experiment.wandb_project
+    if experiment == "classifier":
+        agent_cfg.env.env_name = "Isaac-Franka-Guidance"
     env, agent_cfg, env_cfg = create_env(env_name, agent_cfg)
 
     # create runner
-    if env_name == "Isaac-Franka-Guidance":
+    if experiment == "classifier":
         runner = ClassifierRunner(
             env, agent_cfg, log_dir=log_dir, device=agent_cfg.device
         )
-        model_path = "logs/diffusion/franka/Feb-28/15-30-11/" + "models/model.pt"
+        model_path = "logs/flow_planning/Mar-25/15-44-13/" + "models/model.pt"
         runner.load(model_path)
     else:
         runner = Runner(env, agent_cfg, log_dir=log_dir, device=agent_cfg.device)

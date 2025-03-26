@@ -277,7 +277,7 @@ class ClassifierRunner(Runner):
         start_iter = self.current_learning_iteration
         tot_iter = int(start_iter + self.cfg.num_iters)
         generator = iter(self.train_loader)
-        for it in trange(start_iter, tot_iter):
+        for it in trange(start_iter, tot_iter, dynamic_ncols=True):
             start = time.time()
 
             # evaluation
@@ -287,8 +287,8 @@ class ClassifierRunner(Runner):
                     mse = self.policy.test_classifier(batch)
                     test_mse.append(mse)
                 test_mse = statistics.mean(test_mse)
-                alphas = [0, 10, 50, 100, 200]
-                self.policy.plot_guided_trajectory(it, alphas, "alphas")
+
+                self.policy.plot_trajectory(it)
 
             # training
             try:

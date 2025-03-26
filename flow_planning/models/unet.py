@@ -67,7 +67,7 @@ class ResBlock(nn.Module):
 
 
 class ConditionalUnet1D(nn.Module):
-    def __init__(self, obs_dim, act_dim, cond_dim, down_dims, device, value=False):
+    def __init__(self, obs_dim, act_dim, T, cond_dim, down_dims, device, value=False):
         super().__init__()
         input_dim = obs_dim + act_dim
         all_dims = [input_dim] + list(down_dims)
@@ -80,11 +80,6 @@ class ConditionalUnet1D(nn.Module):
             nn.Linear(cond_dim, cond_dim * 4),
             nn.Mish(),
             nn.Linear(cond_dim * 4, cond_dim),
-        )
-
-        mid_dim = all_dims[-1]
-        self.mid_modules = nn.ModuleList(
-            [ResBlock(mid_dim, mid_dim, cond_dim), ResBlock(mid_dim, mid_dim, cond_dim)]
         )
 
         down_modules = nn.ModuleList([])
@@ -100,44 +95,49 @@ class ConditionalUnet1D(nn.Module):
                 )
             )
 
-        up_modules = nn.ModuleList([])
-        for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
-            is_last = ind >= (len(in_out) - 1)
-            up_modules.append(
-                nn.ModuleList(
-                    [
-                        ResBlock(dim_out * 2, dim_in, cond_dim),
-                        ResBlock(dim_in, dim_in, cond_dim),
-                        Upsample1d(dim_in) if not is_last else nn.Identity(),
-                    ]
-                )
+        mid_dim = all_dims[-1]
+
+        if not value:
+            self.mid_modules = nn.ModuleList(
+                [
+                    ResBlock(mid_dim, mid_dim, cond_dim),
+                    ResBlock(mid_dim, mid_dim, cond_dim),
+                ]
             )
 
-        final_conv = nn.Sequential(
-            ConvBlock(start_dim, start_dim),
-            nn.Conv1d(start_dim, input_dim, 1),
-        )
+            up_modules = nn.ModuleList([])
+            for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
+                is_last = ind >= (len(in_out) - 1)
+                up_modules.append(
+                    nn.ModuleList(
+                        [
+                            ResBlock(dim_out * 2, dim_in, cond_dim),
+                            ResBlock(dim_in, dim_in, cond_dim),
+                            Upsample1d(dim_in) if not is_last else nn.Identity(),
+                        ]
+                    )
+                )
 
-        # for value unet
-        # self.mid_block_1 = ResBlock(mid_dim, mid_dim // 2, cond_dim)
-        # self.mid_down_1 = Downsample1d(mid_dim // 2)
-        # self.mid_block_2 = ResBlock(mid_dim // 2, mid_dim // 4, cond_dim)
-        # self.mid_down_2 = Downsample1d(mid_dim // 4)
-        #
-        # horizon = T
-        # for _ in range(4):
-        #     horizon = (horizon + 1) // 2
-        # fc_dim = 64 * horizon + 256
-        #
-        # self.final_block = nn.Sequential(
-        #     nn.Linear(fc_dim, fc_dim // 2),
-        #     nn.Mish(),
-        #     nn.Linear(fc_dim // 2, 1),
-        # )
+            self.final_conv = nn.Sequential(
+                ConvBlock(start_dim, start_dim),
+                nn.Conv1d(start_dim, input_dim, 1),
+            )
+            self.up_modules = up_modules
+        else:
+            self.mid_block_1 = ResBlock(mid_dim, mid_dim // 2, cond_dim)
+            self.mid_down_1 = Downsample1d(mid_dim // 2)
+            self.mid_block_2 = ResBlock(mid_dim // 2, mid_dim // 4, cond_dim)
+            self.mid_down_2 = Downsample1d(mid_dim // 4)
 
-        self.up_modules = up_modules
+            fc_dim = 512
+            self.final_block = nn.Sequential(
+                nn.Linear(fc_dim + cond_dim, fc_dim // 2),
+                nn.Mish(),
+                nn.Linear(fc_dim // 2, 1),
+            )
+
         self.down_modules = down_modules
-        self.final_conv = final_conv
+        self.value = value
         self.to(device)
 
         total_params = sum(p.numel() for p in self.parameters())
@@ -154,26 +154,26 @@ class ConditionalUnet1D(nn.Module):
             h.append(x)
             x = downsample(x)
 
-        for mid_module in self.mid_modules:
-            x = mid_module(x, global_feature)
+        if not self.value:
+            for mid_module in self.mid_modules:
+                x = mid_module(x, global_feature)
 
-        for resnet, resnet2, upsample in self.up_modules:  # type: ignore
-            x = torch.cat((x, h.pop()), dim=1)
-            x = resnet(x, global_feature)
-            x = resnet2(x, global_feature)
-            x = upsample(x)
+            for resnet, resnet2, upsample in self.up_modules:  # type: ignore
+                x = torch.cat((x, h.pop()), dim=1)
+                x = resnet(x, global_feature)
+                x = resnet2(x, global_feature)
+                x = upsample(x)
 
-        x = self.final_conv(x)
+            x = self.final_conv(x)
 
-        x = einops.rearrange(x, "b h t -> b t h")
+            x = einops.rearrange(x, "b h t -> b t h")
+        else:
+            x = self.mid_block_1(x, global_feature)
+            x = self.mid_down_1(x)
+            x = self.mid_block_2(x, global_feature)
+            x = self.mid_down_2(x)
 
-        # for value unet
-        # x = self.mid_block_1(x, global_feature)
-        # x = self.mid_down_1(x)
-        # x = self.mid_block_2(x, global_feature)
-        # x = self.mid_down_2(x)
-        #
-        # x = x.view(x.shape[0], -1)
-        # x = self.final_block(torch.cat([x, global_feature], dim=-1))
+            x = x.view(x.shape[0], -1)
+            x = self.final_block(torch.cat([x, global_feature], dim=-1))
 
         return x

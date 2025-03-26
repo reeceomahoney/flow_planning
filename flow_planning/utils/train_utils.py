@@ -20,8 +20,8 @@ def check_collisions(traj: Tensor) -> Tensor:
 
 
 def calculate_return(traj: Tensor) -> Tensor:
-    vels = -(traj[:, 1:] - traj[:, :-1]).norm(dim=-1)
-    return vels.sum(dim=-1, keepdim=True)
+    collision_mask = check_collisions(traj).float()
+    return torch.sum(collision_mask, dim=-1, keepdim=True)
 
 
 def create_env(env_name, agent_cfg):
