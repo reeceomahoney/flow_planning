@@ -88,7 +88,8 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
-        action = x[:, : self.T_action, : self.action_dim]
+        # action = x[:, : self.T_action, : self.action_dim]
+        action = torch.zeros(x.shape[0], x.shape[1], 7).to(self.device)
         return {"action": action, "obs_traj": obs}
 
     def update(self, data):
@@ -216,10 +217,13 @@ class Policy(nn.Module):
             # guidance
             if self.alpha > 0:
                 with torch.enable_grad():
-                    x_grad = x.detach().clone().requires_grad_(True)
-                    y = self.classifier(x_grad, expand_t(timesteps[i + 1], bsz), data)
-                    grad = torch.autograd.grad(y.sum(), x_grad, create_graph=True)[0]
-                    x = x_grad + self.alpha * (1 - timesteps[i + 1]) * grad.detach()
+                    # x_grad = x.detach().clone().requires_grad_(True)
+                    # y = self.classifier(x_grad, expand_t(timesteps[i + 1], bsz), data)
+                    # grad = torch.autograd.grad(y.sum(), x_grad, create_graph=True)[0]
+                    grad = torch.zeros_like(x)
+                    grad[..., 2] = 1
+                    dt = timesteps[i + 1] - timesteps[i]
+                    x += self.alpha * (1 - timesteps[i]) * dt * grad.detach()
             elif self.cond_lambda > 0:
                 x_cond, x_uncond = x.chunk(2)
                 x = x_uncond + self.cond_lambda * (x_cond - x_uncond)
@@ -258,7 +262,8 @@ class Policy(nn.Module):
         if "action" in data:
             # train and test case
             obs = data["obs"][:, 0]
-            input = torch.cat([data["action"], data["obs"]], dim=-1)
+            # input = torch.cat([data["action"], data["obs"]], dim=-1)
+            input = data["obs"]
             input = self.normalizer.scale_output(input)
             returns = calculate_return(data["obs"])
             returns = self.normalizer.scale_return(returns)

@@ -117,8 +117,8 @@ def main(agent_cfg: DictConfig):
 
         # plot trajectory
         if args_cli.plot:
-            lambdas = torch.tensor([0, 1, 2, 5, 10]) * 1e-3
-            _, axes = plt.subplots(1, len(lambdas), figsize=(len(lambdas) * 4, 4))
+            lambdas = torch.tensor([0, 1, 2, 3, 4, 5])
+            fig, axes = plt.subplots(1, len(lambdas), figsize=(len(lambdas) * 4, 4))
 
             for i in range(len(lambdas)):
                 runner.policy.alpha = lambdas[i].item()
@@ -126,7 +126,9 @@ def main(agent_cfg: DictConfig):
                 runner.policy._generate_plot(axes[i], traj[0], obs[0, 18:21], goal[0])
                 axes[i].set_title(f"Lambda: {lambdas[i]:.3f}")
 
+            fig.tight_layout()
             plt.show()
+
             simulation_app.close()
             exit()
 
