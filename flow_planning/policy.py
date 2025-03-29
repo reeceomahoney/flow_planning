@@ -96,22 +96,21 @@ class Policy(nn.Module):
         data = self.process(data)
         x_1 = data["input"]
         x_0 = torch.randn_like(x_1)
+        bsz = x_1.shape[0]
 
         # compute sample and target
         if self.algo == "flow":
-            t = torch.rand(x_1.shape[0], 1, 1).to(self.device)
+            t = torch.rand(bsz, 1, 1).to(self.device)
             x_t = (1 - t) * x_0 + t * x_1
             target = x_1 - x_0
         elif self.algo == "ddpm":
-            t = torch.randint(0, self.sampling_steps, (x_1.shape[0], 1, 1)).to(
-                self.device
-            )
+            t = torch.randint(0, self.sampling_steps, (bsz, 1, 1)).to(self.device)
             x_t = self.scheduler.add_noise(x_1, x_0, t)  # type: ignore
             target = x_0
 
         # cfg masking
         if self.cond_mask_prob > 0:
-            cond_mask = torch.rand(x_1.shape[0], 1) < self.cond_mask_prob
+            cond_mask = torch.rand(bsz, 1) < self.cond_mask_prob
             data["returns"][cond_mask] = 0
 
         # compute model output
@@ -235,7 +234,8 @@ class Policy(nn.Module):
             midpoint = x[:, self.T // 2]
             x = torch.randn((2 * bsz, self.T // 2, self.input_dim)).to(self.device)
             data = {
-                k: torch.cat([v] * 2) if v is not None else None for k, v in data.items()
+                k: torch.cat([v] * 2) if v is not None else None
+                for k, v in data.items()
             }
             data["obs"][bsz:] = midpoint
             data["goal"][:bsz] = midpoint
