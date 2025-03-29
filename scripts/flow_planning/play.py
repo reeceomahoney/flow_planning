@@ -106,6 +106,7 @@ def main(agent_cfg: DictConfig):
     resume_path = os.path.join(get_latest_run(log_root_path), "models", "model.pt")
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
+    policy = runner.policy
 
     # reset environment
     obs, _ = env.get_observations()
@@ -113,21 +114,32 @@ def main(agent_cfg: DictConfig):
     # simulate environment
     while simulation_app.is_running():
         goal = get_goal(env)
-        output = runner.policy.act({"obs": obs, "goal": goal})
+        output = policy.act({"obs": obs, "goal": goal})
 
         # plot trajectory
         if args_cli.plot:
-            lambdas = torch.tensor([0, 1, 2, 3, 4, 5])
-            fig, axes = plt.subplots(1, len(lambdas), figsize=(len(lambdas) * 4, 4))
+            lambdas = torch.tensor([0, 1, 2, 4])
+            fig, ax = plt.subplots()
+            colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(lambdas)))
 
             for i in range(len(lambdas)):
-                runner.policy.alpha = lambdas[i].item()
-                traj = runner.policy.act({"obs": obs, "goal": goal})["obs_traj"]
-                runner.policy._generate_plot(axes[i], traj[0], obs[0, 18:21], goal[0])
-                axes[i].set_title(f"Lambda: {lambdas[i]:.3f}")
+                policy.alpha = lambdas[i].item()
+                traj = policy.act({"obs": obs, "goal": goal})["obs_traj"]
+                policy.generate_plot(
+                    ax,
+                    traj[0],
+                    obs[0, 18:21],
+                    goal[0],
+                    color=colors[i],
+                    label=f"Alpha: {lambdas[i]}",
+                )
 
+            ax.legend()
+            ax.set_title("x-z plane")
+            ax.set_xlabel("x")
+            ax.set_ylabel("z")
             fig.tight_layout()
-            plt.show()
+            plt.savefig("data.png")
 
             simulation_app.close()
             exit()

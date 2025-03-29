@@ -303,7 +303,7 @@ class Policy(nn.Module):
             for i in range(len(lambdas)):
                 self.cond_lambda = lambdas[i]
                 traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-                self._generate_plot(axes[i], traj[0], obs[0, 18:21], goal[0])
+                self.generate_plot(axes[i], traj[0], obs[0, 18:21], goal[0])
                 axes[i].set_title(f"Lambda: {lambdas[i]}")
 
             self.cond_lambda = 0
@@ -312,19 +312,19 @@ class Policy(nn.Module):
         else:
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
             fig, ax = plt.subplots()
-            self._generate_plot(ax, traj[0], obs[0, 18:21], goal[0])
+            self.generate_plot(ax, traj[0], obs[0, 18:21], goal[0])
 
             fig.tight_layout()
             wandb.log({"Trajectory": wandb.Image(fig)}, step=it)
 
-    def _generate_plot(self, ax, traj, obs, goal):
+    def generate_plot(self, ax, traj, obs, goal, color="blue", label=None):
         traj, obs, goal = traj.cpu(), obs.cpu(), goal.cpu()
         idx = 2 if isinstance(self.env, RslRlVecEnvWrapper) else 1
         marker_params = {"markersize": 10, "markeredgewidth": 3}
 
         # Plot trajectory with color gradient
-        gradient = np.linspace(0, 1, len(traj))
-        ax.scatter(traj[:, 0], traj[:, idx], c=gradient, cmap="inferno")
+        # gradient = np.linspace(0, 1, len(traj))
+        ax.scatter(traj[:, 0], traj[:, idx], color=color, label=label)
         # Plot start and goal positions
         ax.plot(obs[0], obs[idx], "x", color="green", **marker_params)
         ax.plot(goal[0], goal[idx], "x", color="red", **marker_params)
