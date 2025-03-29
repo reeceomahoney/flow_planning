@@ -1,7 +1,6 @@
 import random
 
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -75,6 +74,7 @@ class Policy(nn.Module):
         self.gammas = torch.tensor([0.99**i for i in range(self.T)]).to(device)
         self.cond_mask_prob = cond_mask_prob
         self.cond_lambda = cond_lambda
+        self.use_refinement = False
 
         self.to(device)
 
@@ -229,6 +229,23 @@ class Policy(nn.Module):
                 x = x_uncond + self.cond_lambda * (x_cond - x_uncond)
 
         x = self.inpaint(x, {"obs": data["obs"][:bsz], "goal": data["goal"][:bsz]})
+
+        # refinement step
+        if self.use_refinement:
+            midpoint = x[:, self.T // 2]
+            x = torch.randn((2 * bsz, self.T // 2, self.input_dim)).to(self.device)
+            data = {
+                k: torch.cat([v] * 2) if v is not None else None for k, v in data.items()
+            }
+            data["obs"][bsz:] = midpoint
+            data["goal"][:bsz] = midpoint
+
+            for i in range(self.sampling_steps):
+                x = self.inpaint(x, data)
+                x = self.step(x, timesteps[i], timesteps[i + 1], data)
+
+            x = self.inpaint(x, data)
+            x = torch.cat([x[:bsz], x[bsz:]], dim=1)
 
         # denormalize
         x = self.normalizer.clip(x)
