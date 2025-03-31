@@ -159,7 +159,9 @@ def main(agent_cfg: DictConfig):
         # run everything in inference mode
         with torch.inference_mode():
             actions = policy(obs)
-            actions += 0.2 * torch.randn_like(actions)
+            if timestep % 32 == 0:
+                noise = 0.2 * torch.randn_like(actions)
+            actions += noise
             next_obs, rew, dones, _ = env.step(actions)
             # collect data
             if args_cli.collect:

@@ -118,7 +118,7 @@ def main(agent_cfg: DictConfig):
 
         # plot trajectory
         if args_cli.plot:
-            lambdas = torch.tensor([0, 1, 2, 4])
+            lambdas = torch.tensor([0, 1, 2, 3, 4])
             fig, ax = plt.subplots()
             colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(lambdas)))
 
@@ -139,7 +139,7 @@ def main(agent_cfg: DictConfig):
             ax.set_xlabel("x")
             ax.set_ylabel("z")
             fig.tight_layout()
-            plt.savefig("data.png")
+            plt.show()
 
             simulation_app.close()
             exit()

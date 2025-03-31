@@ -231,8 +231,11 @@ class Policy(nn.Module):
 
         # refinement step
         if self.use_refinement:
-            midpoint = x[:, self.T // 2]
-            x = torch.randn((2 * bsz, self.T // 2, self.input_dim)).to(self.device)
+            midpoint = x[:, self.T // 2].clone()
+            x_0 = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
+            x = 0.5 * x_0 + 0.5 * x
+            x = torch.cat([x[:, : self.T // 2], x[:, self.T // 2 :]], dim=0)
+
             data = {
                 k: torch.cat([v] * 2) if v is not None else None
                 for k, v in data.items()
@@ -240,9 +243,14 @@ class Policy(nn.Module):
             data["obs"][bsz:] = midpoint
             data["goal"][:bsz] = midpoint
 
-            for i in range(self.sampling_steps):
+            for i in range(self.sampling_steps // 2):
                 x = self.inpaint(x, data)
-                x = self.step(x, timesteps[i], timesteps[i + 1], data)
+                x = self.step(
+                    x,
+                    timesteps[i + self.sampling_steps // 2],
+                    timesteps[i + 1 + self.sampling_steps // 2],
+                    data,
+                )
 
             x = self.inpaint(x, data)
             x = torch.cat([x[:bsz], x[bsz:]], dim=1)
