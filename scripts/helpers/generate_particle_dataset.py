@@ -1,19 +1,9 @@
-import argparse
 import time
 
 from isaaclab.app import AppLauncher
 
 # NOTE: We need to run the app launcher first to avoid import errors
-
-# Parse arguments for AppLauncher
-parser = argparse.ArgumentParser()
-AppLauncher.add_app_launcher_args(parser)
-args_cli, _ = parser.parse_known_args()
-args_cli.headless = True
-
-# Launch simulator
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
+app_launcher = AppLauncher({"headless": True})
 
 from flow_planning.envs.particle import ParticleEnv
 
