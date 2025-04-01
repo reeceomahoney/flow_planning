@@ -185,7 +185,6 @@ def main(agent_cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    # run the main function
-    main()  # type: ignore
-    # close sim app
+    sys.argv.append("hydra/job_logging=disabled")
+    main()
     simulation_app.close()
