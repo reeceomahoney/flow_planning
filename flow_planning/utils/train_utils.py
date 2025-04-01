@@ -51,7 +51,7 @@ def create_env(env_name, agent_cfg):
             # create isaac environment
             env = gym.make(env_name, cfg=env_cfg, render_mode=None)
             env = RslRlVecEnvWrapper(env)  # type: ignore
-            agent_cfg.obs_dim = 9
+            agent_cfg.obs_dim = 27
             agent_cfg.act_dim = 0
 
     return env, agent_cfg, env_cfg

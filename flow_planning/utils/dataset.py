@@ -41,8 +41,7 @@ class FlowPlanningDataset(Dataset):
             }
             obs = data["observations"]
             # remove commands
-            # obs = torch.cat([obs[..., :27], obs[..., 34:]], dim=-1)
-            obs = obs[..., 18:27]
+            obs = obs[..., :27]
             actions = data["actions"]
             terminals = data["terminals"]
             split_indices = torch.where(terminals.flatten() == 1)[0] + 1
@@ -92,7 +91,7 @@ class FlowPlanningDataset(Dataset):
         obs = self.add_padding(obs_splits, max_len, temporal=True)
         actions = self.add_padding(actions_splits, max_len, temporal=True)
         masks = self.create_masks(obs_splits, max_len)
-        goal = obs[:, -1]
+        goal = obs[:, -1, 18:27]
 
         # import matplotlib.pyplot as plt
         # fig, ax = plt.subplots(1,2)

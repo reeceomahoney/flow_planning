@@ -127,9 +127,9 @@ def main(agent_cfg: DictConfig):
                 traj = policy.act({"obs": obs, "goal": goal})["obs_traj"]
                 policy.generate_plot(
                     ax,
-                    traj[0],
-                    obs[0, 18:21],
-                    goal[0],
+                    traj[..., 18:21],
+                    obs[:, 18:21],
+                    goal,
                     color=colors[i],
                     label=f"Alpha: {lambdas[i]}",
                 )
