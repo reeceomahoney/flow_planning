@@ -231,7 +231,7 @@ class Policy(nn.Module):
 
         # refinement step
         if self.use_refinement:
-            midpoint = x[:, self.T // 2].clone()
+            midpoint = x[:, self.T // 2, self.action_dim :].clone()
             x_0 = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
             x = 0.5 * x_0 + 0.5 * x
             x = torch.cat([x[:, : self.T // 2], x[:, self.T // 2 :]], dim=0)

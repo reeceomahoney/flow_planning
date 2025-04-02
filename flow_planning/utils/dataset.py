@@ -95,8 +95,8 @@ class FlowPlanningDataset(Dataset):
 
         # import matplotlib.pyplot as plt
         # fig, ax = plt.subplots(1,2)
-        # ax[0].scatter(obs[:100, :, 0], obs[:100, :, 1])
-        # ax[1].scatter(obs[:100, :, 0], obs[:100, :, 2])
+        # ax[0].scatter(obs[:100, :, 18], obs[:100, :, 19])
+        # ax[1].scatter(obs[:100, :, 18], obs[:100, :, 20])
         # plt.show()
         # exit()
 
