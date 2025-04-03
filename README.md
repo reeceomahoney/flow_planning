@@ -7,3 +7,5 @@
 - [x] Fix value unet
 - [ ] simplify normalizer
 - [ ] Add data viz script
+- [ ] Swap obs and actions
+- [ ] Make classifier policy
