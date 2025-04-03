@@ -16,6 +16,7 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
         self.events.reset_robot_joints = EventTermCfg(
             func=mdp.reset_joints_fixed, mode="reset"
         )
+        self.events.apply_random_force = None  # type: ignore
         self.commands.ee_pose = mdp.ScheduledPoseCommandCfg(  # type: ignore
             asset_name="robot",
             body_name="panda_hand",

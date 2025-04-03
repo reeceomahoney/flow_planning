@@ -145,7 +145,7 @@ def main(agent_cfg: DictConfig):
             exit()
 
         if env_name.startswith("Isaac"):
-            trajectory_visualizer.visualize(output["obs_traj"][0, :, :3])
+            trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
 
         # env stepping
         for i in range(runner.policy.T_action):
