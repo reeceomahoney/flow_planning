@@ -12,7 +12,7 @@ from rsl_rl.utils import store_code_state
 from tqdm import tqdm, trange
 
 from flow_planning.envs import MazeEnv, ParticleEnv
-from flow_planning.policy import Policy
+from flow_planning.policy import ClassifierPolicy, Policy
 from flow_planning.utils import (
     ExponentialMovingAverage,
     InferenceContext,
@@ -24,6 +24,10 @@ from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 # A logger for this file
 log = logging.getLogger(__name__)
+
+
+def process_ep_data(x, new_ids):
+    return x[new_ids][:, 0].detach().cpu().numpy().tolist()
 
 
 class Runner:
@@ -41,10 +45,7 @@ class Runner:
 
         # classes
         self.train_loader, self.test_loader = get_dataloaders(**self.cfg.dataset)
-        normalizer = Normalizer(self.train_loader, agent_cfg.scaling, device)
-        model = hydra.utils.instantiate(self.cfg.model)
-        classifier = hydra.utils.instantiate(self.cfg.model, value=True)
-        self.policy = Policy(model, classifier, normalizer, env, **self.cfg.policy)
+        self._create_policy()
 
         # ema
         self.ema_helper = ExponentialMovingAverage(
@@ -75,6 +76,11 @@ class Runner:
             os.makedirs(os.path.join(log_dir, "models"), exist_ok=True)  # type: ignore
             # save git diffs
             store_code_state(self.log_dir, [__file__])
+
+    def _create_policy(self):
+        model = hydra.utils.instantiate(self.cfg.model)
+        normalizer = Normalizer(self.train_loader, self.cfg.scaling, self.device)
+        self.policy = Policy(model, normalizer, self.env, **self.cfg.policy)
 
     def learn(self):
         obs, _ = self.env.get_observations()
@@ -131,10 +137,10 @@ class Runner:
                                 cur_episode_length += 1
                                 new_ids = (dones > 0).nonzero(as_tuple=False)
                                 rewbuffer.extend(
-                                    self.process_ep_data(cur_reward_sum, new_ids)
+                                    process_ep_data(cur_reward_sum, new_ids)
                                 )
                                 lenbuffer.extend(
-                                    self.process_ep_data(cur_episode_length, new_ids)
+                                    process_ep_data(cur_episode_length, new_ids)
                                 )
                                 cur_reward_sum[new_ids] = 0
                                 cur_episode_length[new_ids] = 0
@@ -231,7 +237,7 @@ class Runner:
                 step=locs["it"],
             )
 
-    def save(self, path, infos=None):
+    def save(self, path):
         if self.use_ema:
             self.ema_helper.store(self.policy.parameters())
             self.ema_helper.copy_to(self.policy.parameters())
@@ -240,9 +246,7 @@ class Runner:
             "model_state_dict": self.policy.model.state_dict(),
             "optimizer_state_dict": self.policy.optimizer.state_dict(),
             "norm_state_dict": self.policy.normalizer.state_dict(),
-            "classifier_state_dict": self.policy.classifier.state_dict(),
             "iter": self.current_learning_iteration,
-            "infos": infos,
         }
         torch.save(saved_dict, path)
 
@@ -254,22 +258,16 @@ class Runner:
         self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
         self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
         self.policy.normalizer.load_state_dict(loaded_dict["norm_state_dict"])
-        self.policy.classifier.load_state_dict(loaded_dict["classifier_state_dict"])
-        return loaded_dict["infos"]
-
-    def process_ep_data(self, x, new_ids):
-        return x[new_ids][:, 0].detach().cpu().numpy().tolist()
 
 
 class ClassifierRunner(Runner):
-    def __init__(
-        self,
-        env: RslRlVecEnvWrapper | MazeEnv | ParticleEnv,
-        agent_cfg,
-        log_dir: str | None = None,
-        device="cpu",
-    ):
-        super().__init__(env, agent_cfg, log_dir, device)
+    def _create_policy(self):
+        model = hydra.utils.instantiate(self.cfg.model)
+        classifier = hydra.utils.instantiate(self.cfg.model, value=True)
+        normalizer = Normalizer(self.train_loader, self.cfg.scaling, self.device)
+        self.policy = ClassifierPolicy(
+            model, classifier, normalizer, self.env, **self.cfg.policy
+        )
 
     def learn(self):
         self.policy.train()
@@ -284,7 +282,7 @@ class ClassifierRunner(Runner):
             if it % self.cfg.eval_interval == 0:
                 test_mse = []
                 for batch in tqdm(self.test_loader, desc="Testing...", leave=False):
-                    mse = self.policy.test_classifier(batch)
+                    mse = self.policy.test(batch)
                     test_mse.append(mse)
                 test_mse = statistics.mean(test_mse)
 
@@ -297,7 +295,7 @@ class ClassifierRunner(Runner):
                 generator = iter(self.train_loader)
                 batch = next(generator)
 
-            loss = self.policy.update_classifier(batch)
+            loss = self.policy.update(batch)
             self.ema_helper.update(self.policy.parameters())
 
             # logging
@@ -329,3 +327,28 @@ class ClassifierRunner(Runner):
                 {"Loss/test_mse": locs["test_mse"]},
                 step=locs["it"],
             )
+
+    def save(self, path, infos=None):
+        if self.use_ema:
+            self.ema_helper.store(self.policy.parameters())
+            self.ema_helper.copy_to(self.policy.parameters())
+
+        saved_dict = {
+            "model_state_dict": self.policy.model.state_dict(),
+            "optimizer_state_dict": self.policy.optimizer.state_dict(),
+            "norm_state_dict": self.policy.normalizer.state_dict(),
+            "classifier_state_dict": self.policy.classifier.state_dict(),
+            "iter": self.current_learning_iteration,
+            "infos": infos,
+        }
+        torch.save(saved_dict, path)
+
+        if self.use_ema:
+            self.ema_helper.restore(self.policy.parameters())
+
+    def load(self, path):
+        loaded_dict = torch.load(path, map_location=self.device)
+        self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
+        self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
+        self.policy.normalizer.load_state_dict(loaded_dict["norm_state_dict"])
+        self.policy.classifier.load_state_dict(loaded_dict["classifier_state_dict"])
