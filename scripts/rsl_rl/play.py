@@ -144,7 +144,7 @@ def main(agent_cfg: DictConfig):
     )
 
     if args_cli.collect:
-        collector = DataCollector(env, "data/rsl_rl/data.hdf5")
+        collector = DataCollector(env, "data/rsl_rl/stitch_data.hdf5")
         pbar = tqdm(total=args_cli.num_timesteps, desc="Collecting data")
 
     # reset environment
@@ -159,10 +159,9 @@ def main(agent_cfg: DictConfig):
         # run everything in inference mode
         with torch.inference_mode():
             actions = policy(obs)
-            if timestep % 64 == 0:
+            if timestep % 1 == 0:
                 noise = 0.2 * torch.randn_like(actions)
-            actions += noise
-            next_obs, rew, dones, _ = env.step(actions)
+            next_obs, rew, dones, _ = env.step(actions + noise)
             # collect data
             if args_cli.collect:
                 collector.add_step(obs, actions, rew, dones)

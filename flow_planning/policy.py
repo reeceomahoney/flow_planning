@@ -75,7 +75,7 @@ class Policy(nn.Module):
 
     @torch.no_grad()
     def act(self, data: dict) -> dict[str, torch.Tensor]:
-        data["obs"] = data["obs"][:, :27]
+        data["obs"] = data["obs"][:, 18:27]
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
@@ -235,7 +235,7 @@ class Policy(nn.Module):
             returns = torch.ones(obs.shape[0], 1).to(self.device)
 
         obs = self.normalizer.scale_input(obs)
-        goal = self.normalizer.scale_9d_pos(data["goal"])
+        goal = self.normalizer.scale_input(data["goal"])
 
         return {"obs": obs, "input": input, "goal": goal, "returns": returns}
 
@@ -244,7 +244,7 @@ class Policy(nn.Module):
 
     def inpaint(self, x: Tensor, data: dict) -> Tensor:
         x[:, 0, self.action_dim :] = data["obs"]
-        x[:, -1, self.action_dim + 18 :] = data["goal"]
+        x[:, -1, self.action_dim :] = data["goal"]
         return x
 
     #################
@@ -273,7 +273,7 @@ class Policy(nn.Module):
         else:
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
             fig, ax = plt.subplots()
-            self.generate_plot(ax, traj[..., 18:21], obs[:, 18:21], goal)
+            self.generate_plot(ax, traj, obs[:, 18:21], goal)
 
             fig.tight_layout()
             wandb.log({"Trajectory": wandb.Image(fig)}, step=it)

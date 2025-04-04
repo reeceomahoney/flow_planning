@@ -39,13 +39,13 @@ class CommandsCfg:
         ),
     )
 
-    # ee_pose = mdp.ScheduledPoseCommandCfg(
-    #     asset_name="robot",
-    #     body_name="panda_hand",
-    #     resampling_time_range=(T_MAX, T_MAX),
-    #     debug_vis=True,
-    #     fixed_commands=[(0.8, 0, 0.6), (0.8, 0, 0.2)],
-    # )
+    ee_pose = mdp.ScheduledPoseCommandCfg(
+        asset_name="robot",
+        body_name="panda_hand",
+        resampling_time_range=(T_MAX, T_MAX),
+        debug_vis=True,
+        fixed_commands=[(0.8, 0, 0.6), (0.8, 0, 0.2)],
+    )
 
 
 @configclass
@@ -86,9 +86,9 @@ class EventCfg:
     """Configuration for events."""
 
     reset_robot_joints = EventTermCfg(
-        func=mdp.reset_joints_by_scale,
+        func=mdp.reset_joints_fixed,
         mode="reset",
-        params={"position_range": (0.5, 1.5), "velocity_range": (0.0, 0.0)},
+        # params={"position_range": (0.5, 1.5), "velocity_range": (0.0, 0.0)},
     )
     # apply_random_force = EventTermCfg(
     #     func=mdp.apply_external_force_torque,
