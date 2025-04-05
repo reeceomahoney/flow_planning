@@ -161,7 +161,8 @@ def main(agent_cfg: DictConfig):
             actions = policy(obs)
             if timestep % 1 == 0:
                 noise = 0.2 * torch.randn_like(actions)
-            next_obs, rew, dones, _ = env.step(actions + noise)
+            actions += noise
+            next_obs, rew, dones, _ = env.step(actions)
             # collect data
             if args_cli.collect:
                 collector.add_step(obs, actions, rew, dones)
