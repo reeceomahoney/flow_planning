@@ -6,6 +6,6 @@
 - [x] Simplify unet
 - [x] Fix value unet
 - [x] Make classifier policy
-- [ ] simplify normalizer
 - [x] Add data viz script
+- [ ] simplify normalizer
 - [ ] Swap obs and actions

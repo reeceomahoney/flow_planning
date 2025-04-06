@@ -75,7 +75,7 @@ class Policy(nn.Module):
 
     @torch.no_grad()
     def act(self, data: dict) -> dict[str, torch.Tensor]:
-        data["obs"] = data["obs"][:, 18:27]
+        data["obs"] = self.get_model_states(data["obs"])
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
@@ -247,6 +247,9 @@ class Policy(nn.Module):
         x[:, -1, self.action_dim :] = data["goal"]
         return x
 
+    def get_model_states(self, x):
+        return x[:, 18:27] if isinstance(self.env, RslRlVecEnvWrapper) else x
+
     #################
     # Visualization #
     #################
@@ -273,7 +276,7 @@ class Policy(nn.Module):
         else:
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
             fig, ax = plt.subplots()
-            self.generate_plot(ax, traj, obs[:, 18:21], goal)
+            self.generate_plot(ax, traj, self.get_model_states(obs), goal)
 
             fig.tight_layout()
             wandb.log({"Trajectory": wandb.Image(fig)}, step=it)

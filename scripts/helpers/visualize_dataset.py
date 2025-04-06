@@ -4,6 +4,7 @@ from isaaclab.app import AppLauncher
 app_launcher = AppLauncher({"headless": True})
 
 import random
+import sys
 
 import hydra
 import matplotlib.pyplot as plt
@@ -72,4 +73,6 @@ def main(agent_cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    sys.argv.append("hydra.output_subdir=null")
+    sys.argv.append("hydra.run.dir=.")
     main()
