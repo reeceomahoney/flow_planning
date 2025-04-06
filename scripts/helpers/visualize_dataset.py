@@ -60,14 +60,14 @@ def main(agent_cfg: DictConfig):
     for traj in traj_2:
         plot_lines(traj, c, ax, "Reds")
 
-    ax.set_xlabel("X-coordinate")
-    ax.set_ylabel("Y-coordinate")
-    ax.set_title("Visualization of Trajectories by Starting Position")
-    plt.axis("equal")
     ax.axis("equal")
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.tick_params(axis='both', which='both', length=0)
     ax.grid(True, linestyle="--", alpha=0.6)
+    plt.tight_layout()
 
-    save_path = "data.png"
+    save_path = "data.pdf"
     plt.savefig(save_path)
     print(f"Saving dataset visualization to {save_path}...")
 
