@@ -174,7 +174,7 @@ class Policy(nn.Module):
             # guidance
             if self.alpha > 0:
                 grad = torch.zeros_like(x)
-                grad[..., 27] = 1
+                grad[..., 9] = 1
                 dt = timesteps[i + 1] - timesteps[i]
                 x += self.alpha * (1 - timesteps[i]) * dt * grad.detach()
             elif self.cond_lambda > 0:
