@@ -1,9 +1,9 @@
-import time
-
 from isaaclab.app import AppLauncher
 
 # NOTE: We need to run the app launcher first to avoid import errors
 app_launcher = AppLauncher({"headless": True})
+
+import time
 
 from flow_planning.envs.particle import ParticleEnv
 

@@ -127,7 +127,7 @@ def main(agent_cfg: DictConfig):
                 traj = policy.act({"obs": obs, "goal": goal})["obs_traj"]
                 policy.generate_plot(
                     ax,
-                    traj[..., 18:21],
+                    traj,
                     obs[:, 18:21],
                     goal,
                     color=colors[i],
@@ -139,7 +139,7 @@ def main(agent_cfg: DictConfig):
             ax.set_xlabel("x")
             ax.set_ylabel("z")
             fig.tight_layout()
-            plt.show()
+            plt.savefig("data.png")
 
             simulation_app.close()
             exit()

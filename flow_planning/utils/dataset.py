@@ -20,7 +20,7 @@ class FlowPlanningDataset(Dataset):
         if env_name.startswith("Isaac"):
             # build path
             current_dir = os.path.dirname(os.path.realpath(__file__))
-            data_directory = "/data/rsl_rl/stitch_data.hdf5"
+            data_directory = "/data/rsl_rl/data.hdf5"
             dataset_path = current_dir + "/../../" + data_directory
             log.info(f"Loading data from {data_directory}")
 
@@ -92,13 +92,6 @@ class FlowPlanningDataset(Dataset):
         actions = self.add_padding(actions_splits, max_len, temporal=True)
         masks = self.create_masks(obs_splits, max_len)
         goal = obs[:, -1]
-
-        # import matplotlib.pyplot as plt
-        # fig, ax = plt.subplots(1,2)
-        # ax[0].scatter(obs[:100, :, 0], obs[:100, :, 1])
-        # ax[1].scatter(obs[:100, :, 0], obs[:100, :, 2])
-        # plt.show()
-        # exit()
 
         self.data = {"obs": obs, "action": actions, "mask": masks, "goal": goal}
 
