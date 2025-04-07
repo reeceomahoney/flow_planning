@@ -188,7 +188,6 @@ class DiffusionTransformer(nn.Module):
         t_emb = self.t_emb(t).squeeze(1)
         # obs_emb = self.obs_emb(data["obs"])
         # goal_emb = self.goal_emb(data["goal"])
-        # return_emb = self.return_emb(data["returns"])
 
         # construct input
         x = torch.cat([t_emb, x_emb], dim=1)
