@@ -284,14 +284,19 @@ class Policy(nn.Module):
     def generate_plot(self, ax, traj, obs, goal, color="blue", label=None):
         traj, obs, goal = traj[0].cpu(), obs[0].cpu(), goal[0].cpu()
         idx = 2 if isinstance(self.env, RslRlVecEnvWrapper) else 1
-        marker_params = {"markersize": 10, "markeredgewidth": 3}
+        marker_params = {
+            "markersize": 35,
+            "markerfacecolor": "white",
+            "markeredgecolor": "black",
+            "markeredgewidth": 2,
+            "linestyle": "None",
+        }
 
         # Plot trajectory with color gradient
-        # gradient = np.linspace(0, 1, len(traj))
-        ax.scatter(traj[:, 0], traj[:, idx], color=color, label=label)
-        # Plot start and goal positions
-        ax.plot(obs[0], obs[idx], "x", color="green", **marker_params)
-        ax.plot(goal[0], goal[idx], "x", color="red", **marker_params)
+        c = torch.linspace(0, 1, len(traj)) ** 0.7
+        ax.scatter(traj[:, 0], traj[:, idx], c=c, cmap="Reds", s=500)
+        ax.plot(obs[0], obs[idx], "o", **marker_params)
+        ax.plot(goal[0], goal[idx], "*", **marker_params)
 
 
 class ClassifierPolicy(Policy):

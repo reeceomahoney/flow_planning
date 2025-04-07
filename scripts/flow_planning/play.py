@@ -118,8 +118,8 @@ def main(agent_cfg: DictConfig):
 
         # plot trajectory
         if args_cli.plot:
-            lambdas = torch.tensor([0, 1, 2, 3, 4])
-            fig, ax = plt.subplots()
+            lambdas = torch.tensor([0])
+            _, ax = plt.subplots(figsize=(10, 10), dpi=300)
             colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(lambdas)))
 
             for i in range(len(lambdas)):
@@ -128,18 +128,22 @@ def main(agent_cfg: DictConfig):
                 policy.generate_plot(
                     ax,
                     traj,
-                    obs[:, 18:21],
+                    policy.get_model_states(obs),
                     goal,
                     color=colors[i],
                     label=f"Alpha: {lambdas[i]}",
                 )
 
-            ax.legend()
-            ax.set_title("x-z plane")
-            ax.set_xlabel("x")
-            ax.set_ylabel("z")
-            fig.tight_layout()
-            plt.savefig("data.png")
+            # ax.legend()
+            ax.axis("equal")
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            # ax.set_xlim(-0.04, 1.04)
+            # ax.set_ylim(-0.04, 1.04)
+            ax.tick_params(axis="both", which="both", length=0)
+            ax.grid(True, linestyle="--", alpha=0.6)
+            plt.tight_layout()
+            plt.savefig("data.pdf")
 
             simulation_app.close()
             exit()

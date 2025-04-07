@@ -34,7 +34,6 @@ def create_env(env_name, agent_cfg):
         case "Particle":
             env = ParticleEnv(
                 num_envs=agent_cfg.num_envs,
-                init_pos_var=0,
                 seed=agent_cfg.seed,
                 device=agent_cfg.device,
             )

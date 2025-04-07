@@ -35,13 +35,12 @@ class DiffusionTransformer(nn.Module):
 
         # embeddings
         self.x_emb = nn.Linear(input_dim, d_model)
-        self.obs_emb = nn.Linear(obs_dim + 9, d_model)
-        self.goal_emb = nn.Sequential(
-            nn.Linear(9, d_model),
+        self.obs_emb = nn.Sequential(
+            nn.Linear(obs_dim, d_model),
             Rearrange("b d -> b 1 d"),
         )
-        self.return_emb = nn.Sequential(
-            nn.Linear(1, d_model),
+        self.goal_emb = nn.Sequential(
+            nn.Linear(obs_dim, d_model),
             Rearrange("b d -> b 1 d"),
         )
         self.t_emb = nn.Sequential(
@@ -75,9 +74,6 @@ class DiffusionTransformer(nn.Module):
 
         if value:
             self.output = nn.Linear(d_model, 1)
-            # self.output = nn.Sequential(
-            #     nn.Linear(d_model, 1), Rearrange("b t 1 -> b t"), nn.Linear(T, 1)
-            # )
         else:
             self.output = nn.Linear(d_model, input_dim)
 
