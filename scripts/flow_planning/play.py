@@ -111,6 +111,7 @@ def main(agent_cfg: DictConfig):
 
     # reset environment
     obs, _ = env.get_observations()
+    env.reset()
     start = time.time()
     # simulate environment
     while simulation_app.is_running():
@@ -120,7 +121,7 @@ def main(agent_cfg: DictConfig):
         if args_cli.plot:
             lambdas = torch.tensor([0])
             fig = plt.figure(figsize=(10, 10), dpi=300)
-            ax = fig.add_subplot(projection="3d" if isaac_env else "2d")
+            ax = fig.add_subplot(projection="3d" if isaac_env else None)
             colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(lambdas)))
 
             for i in range(len(lambdas)):
