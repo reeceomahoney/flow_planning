@@ -90,6 +90,11 @@ class EventCfg:
         mode="reset",
         params={"position_range": (0.5, 1.5), "velocity_range": (0.0, 0.0)},
     )
+    # reset_robot_joints = EventTermCfg(
+    #     func=mdp.reset_joints_fixed,
+    #     mode="reset",
+    # )
+
     # apply_random_force = EventTermCfg(
     #     func=mdp.apply_external_force_torque,
     #     mode="interval",

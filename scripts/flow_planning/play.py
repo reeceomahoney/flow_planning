@@ -93,9 +93,10 @@ def main(agent_cfg: DictConfig):
     agent_cfg.num_envs = 1
     env_name = agent_cfg.env.env_name
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
+    isaac_env = env_name.startswith("Isaac")
 
     # create trajectory visualizer
-    if env_name.startswith("Isaac"):
+    if isaac_env:
         trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     # load model runner
@@ -114,12 +115,12 @@ def main(agent_cfg: DictConfig):
     # simulate environment
     while simulation_app.is_running():
         goal = get_goal(env)
-        output = policy.act({"obs": obs, "goal": goal})
 
         # plot trajectory
         if args_cli.plot:
             lambdas = torch.tensor([0])
-            _, ax = plt.subplots(figsize=(10, 10), dpi=300)
+            fig = plt.figure(figsize=(10, 10), dpi=300)
+            ax = fig.add_subplot(projection="3d" if isaac_env else "2d")
             colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(lambdas)))
 
             for i in range(len(lambdas)):
@@ -138,18 +139,23 @@ def main(agent_cfg: DictConfig):
             ax.axis("equal")
             ax.set_xticklabels([])
             ax.set_yticklabels([])
-            # ax.set_xlim(-0.04, 1.04)
-            # ax.set_ylim(-0.04, 1.04)
+            if isaac_env:
+                ax.set_zticklabels([])  # type: ignore
+            else:
+                ax.set_xlim(-0.04, 1.04)
+                ax.set_ylim(-0.04, 1.04)
             ax.tick_params(axis="both", which="both", length=0)
             ax.grid(True, linestyle="--", alpha=0.6)
             plt.tight_layout()
-            plt.savefig("data.pdf")
+            plt.savefig("data.pdf", bbox_inches="tight")
 
             simulation_app.close()
             exit()
 
+        output = policy.act({"obs": obs, "goal": goal})
+
         if env_name.startswith("Isaac"):
-            trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
+            trajectory_visualizer.visualize(output["obs_traj"][0, :, :3])
 
         # env stepping
         for i in range(runner.policy.T_action):

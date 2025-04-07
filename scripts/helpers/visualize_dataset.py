@@ -17,7 +17,7 @@ from flow_planning.utils.dataset import get_dataloaders
 
 
 def plot_lines(traj, c, ax, cmap):
-    points = traj.reshape(-1, 1, 2)
+    points = traj.reshape(-1, 1, traj.shape[-1])
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
     lc = LineCollection(
         segments,  # type: ignore
@@ -42,31 +42,39 @@ def main(agent_cfg: DictConfig):
     batch = next(iter(train_loader))
     bsz = 20
     obs = batch["obs"][:bsz]
-
-    _, ax = plt.subplots(figsize=(10, 10), dpi=300)
     c = np.linspace(0, 1, obs.shape[1]) ** 0.7
 
-    traj_1, traj_2 = [], []
-    for i in range(obs.shape[0]):
-        dist = torch.norm(obs[i, 0])
-        if dist < 0.2:
-            traj_1.append(obs[i, :, :2])
-        else:
-            traj_2.append(obs[i, :, :2])
+    if agent_cfg.env.env_name == "Particle":
+        fig, ax = plt.subplots(figsize=(10, 10), dpi=300)
 
-    for traj in traj_1:
-        plot_lines(traj, c, ax, "Blues")
+        traj_1, traj_2 = [], []
+        for i in range(obs.shape[0]):
+            dist = torch.norm(obs[i, 0])
+            if dist < 0.2:
+                traj_1.append(obs[i, :, :2])
+            else:
+                traj_2.append(obs[i, :, :2])
 
-    for traj in traj_2:
-        plot_lines(traj, c, ax, "Reds")
+        for traj in traj_1:
+            plot_lines(traj, c, ax, "Blues")
+
+        for traj in traj_2:
+            plot_lines(traj, c, ax, "Reds")
+
+    else:
+        fig = plt.figure(figsize=(10, 10), dpi=300)
+        ax = fig.add_subplot(projection="3d")
+
+        for i in range(obs.shape[0]):
+            ax.scatter(obs[i, :, 0], obs[i, :, 1], obs[i, :, 2], c=c, cmap="Reds", s=50)  # type: ignore
+            ax.set_zticklabels([])  # type: ignore
 
     ax.axis("equal")
     ax.set_xticklabels([])
     ax.set_yticklabels([])
-    ax.tick_params(axis='both', which='both', length=0)
+    ax.tick_params(axis="both", which="both", length=0)
     ax.grid(True, linestyle="--", alpha=0.6)
     plt.tight_layout()
-
     save_path = "data.pdf"
     plt.savefig(save_path)
     print(f"Saving dataset visualization to {save_path}...")

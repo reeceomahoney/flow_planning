@@ -210,7 +210,7 @@ class Policy(nn.Module):
             x = torch.cat([x[:bsz], x[bsz:]], dim=1)
 
         # denormalize
-        x = self.normalizer.clip(x)
+        # x = self.normalizer.clip(x)
         return self.normalizer.inverse_scale_output(x)
 
     ###################
@@ -293,10 +293,17 @@ class Policy(nn.Module):
         }
 
         # Plot trajectory with color gradient
-        c = torch.linspace(0, 1, len(traj)) ** 0.7
-        ax.scatter(traj[:, 0], traj[:, idx], c=c, cmap="Reds", s=500)
-        ax.plot(obs[0], obs[idx], "o", **marker_params)
-        ax.plot(goal[0], goal[idx], "*", **marker_params)
+        if isinstance(self.env, RslRlVecEnvWrapper):
+            c = torch.linspace(0, 1, len(traj)) ** 0.5
+            s = [300] * len(traj)
+            ax.scatter(traj[:, 0], traj[:, 1], traj[:, 2], s=s, c=c, cmap="Reds")
+            ax.plot(obs[0], obs[1], obs[2], "o", **marker_params)
+            ax.plot(goal[0], goal[1], goal[2], "*", **marker_params)
+        else:
+            c = torch.linspace(0, 1, len(traj)) ** 0.7
+            ax.scatter(traj[:, 0], traj[:, idx], c=c, cmap="Reds", s=500)
+            ax.plot(obs[0], obs[idx], "o", **marker_params)
+            ax.plot(goal[0], goal[idx], "*", **marker_params)
 
 
 class ClassifierPolicy(Policy):

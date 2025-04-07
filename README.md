@@ -9,3 +9,4 @@
 - [x] Add data viz script
 - [ ] simplify normalizer
 - [ ] Swap obs and actions
+- [ ] Simplify command manager
