@@ -43,6 +43,8 @@ class Policy(nn.Module):
         self.env = env
         self.normalizer = normalizer
         self.device = device
+        self.use_refinement = False
+        self.isaac_env = isinstance(self.env, RslRlVecEnvWrapper)
 
         # dims
         self.input_dim = act_dim + obs_dim
@@ -65,7 +67,7 @@ class Policy(nn.Module):
         self.cond_mask_prob = cond_mask_prob
         self.cond_lambda = cond_lambda
         self.alpha = 0.0
-        self.use_refinement = False
+
 
         self.to(device)
 
@@ -248,7 +250,7 @@ class Policy(nn.Module):
         return x
 
     def get_model_states(self, x):
-        return x[:, 18:27] if isinstance(self.env, RslRlVecEnvWrapper) else x
+        return x[:, 18:27] if self.isaac_env else x
 
     #################
     # Visualization #
@@ -275,7 +277,8 @@ class Policy(nn.Module):
             wandb.log({"Guided Trajectory": wandb.Image(fig)}, step=it)
         else:
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-            fig, ax = plt.subplots()
+            fig = plt.figure(figsize=(10, 10), dpi=300)
+            ax = fig.add_subplot(projection="3d" if self.isaac_env else None)
             self.generate_plot(ax, traj, self.get_model_states(obs), goal)
 
             fig.tight_layout()
@@ -283,7 +286,6 @@ class Policy(nn.Module):
 
     def generate_plot(self, ax, traj, obs, goal, color="blue", label=None):
         traj, obs, goal = traj[0].cpu(), obs[0].cpu(), goal[0].cpu()
-        idx = 2 if isinstance(self.env, RslRlVecEnvWrapper) else 1
         marker_params = {
             "markersize": 35,
             "markerfacecolor": "white",
@@ -292,8 +294,7 @@ class Policy(nn.Module):
             "linestyle": "None",
         }
 
-        # Plot trajectory with color gradient
-        if isinstance(self.env, RslRlVecEnvWrapper):
+        if self.isaac_env:
             c = torch.linspace(0, 1, len(traj)) ** 0.5
             s = [300] * len(traj)
             ax.scatter(traj[:, 0], traj[:, 1], traj[:, 2], s=s, c=c, cmap="Reds")
@@ -301,9 +302,9 @@ class Policy(nn.Module):
             ax.plot(goal[0], goal[1], goal[2], "*", **marker_params)
         else:
             c = torch.linspace(0, 1, len(traj)) ** 0.7
-            ax.scatter(traj[:, 0], traj[:, idx], c=c, cmap="Reds", s=500)
-            ax.plot(obs[0], obs[idx], "o", **marker_params)
-            ax.plot(goal[0], goal[idx], "*", **marker_params)
+            ax.scatter(traj[:, 0], traj[:, 1], c=c, cmap="Reds", s=500)
+            ax.plot(obs[0], obs[1], "o", **marker_params)
+            ax.plot(goal[0], goal[1], "*", **marker_params)
 
 
 class ClassifierPolicy(Policy):
