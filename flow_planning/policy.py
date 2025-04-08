@@ -196,7 +196,7 @@ class Policy(nn.Module):
                 for k, v in data.items()
             }
             data["obs"][bsz:] = midpoint
-            data["goal"][:bsz] = midpoint[:, 18:27]
+            data["goal"][:bsz] = midpoint
 
             for i in range(self.sampling_steps // 2):
                 x = self.inpaint(x, data)
@@ -264,6 +264,7 @@ class Policy(nn.Module):
         guide_scales = torch.tensor([0, 1, 2, 3, 4])
         # projection = "3d" if self.isaac_env else None
         projection = None
+        plt.rcParams.update({"font.size": 24})
         fig = plt.figure(figsize=(10, 10), dpi=300)
         ax = fig.add_subplot(projection=projection)
         if len(guide_scales) > 1:
@@ -280,15 +281,17 @@ class Policy(nn.Module):
 
         # format plot
         if len(guide_scales) > 1:
-            ax.legend()
-        ax.axis("equal")
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
+            ax.legend(loc="upper left", fontsize=20)
+        # ax.axis("equal")
+        ax.set_xlabel("X")
+        ax.set_ylabel("Z")
+        # ax.set_xticklabels([])
+        # ax.set_yticklabels([])
         if projection == "3d":
             ax.set_zticklabels([])  # type: ignore
-        if not self.isaac_env:
-            ax.set_xlim(-0.04, 1.04)
-            ax.set_ylim(-0.04, 1.04)
+        # if self.isaac_env:
+        #     ax.set_xlim(0.35, 0.84)
+        #     ax.set_ylim(0.16, 0.66)
         ax.tick_params(axis="both", which="both", length=0)
         ax.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
