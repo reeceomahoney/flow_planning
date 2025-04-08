@@ -120,6 +120,7 @@ def main(agent_cfg: DictConfig):
     # load previously trained model
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     agent_cfg_dict = OmegaConf.to_container(agent_cfg)
+    assert isinstance(agent_cfg_dict, dict)
     ppo_runner = OnPolicyRunner(
         env, agent_cfg_dict, log_dir=None, device=agent_cfg.device
     )
