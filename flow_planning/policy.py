@@ -68,7 +68,6 @@ class Policy(nn.Module):
         self.cond_lambda = cond_lambda
         self.alpha = 0.0
 
-
         self.to(device)
 
     ############
@@ -256,35 +255,53 @@ class Policy(nn.Module):
     # Visualization #
     #################
 
-    def plot_trajectory(self, it: int):
+    def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
         obs, _ = self.env.get_observations()
         goal = get_goal(self.env)
 
-        # plot trajectory
-        if self.cond_mask_prob > 0:
-            lambdas = [0, 1, 2, 5, 10]
-            fig, axes = plt.subplots(1, len(lambdas), figsize=(len(lambdas) * 4, 4))
+        # create figure
+        guide_scales = torch.tensor([0, 1, 2, 3, 4])
+        # projection = "3d" if self.isaac_env else None
+        projection = None
+        fig = plt.figure(figsize=(10, 10), dpi=300)
+        ax = fig.add_subplot(projection=projection)
+        if len(guide_scales) > 1:
+            colors = plt.get_cmap("viridis")(torch.linspace(0, 1, len(guide_scales)))
 
-            for i in range(len(lambdas)):
-                self.cond_lambda = lambdas[i]
-                traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-                self.generate_plot(axes[i], traj[..., 18:21], obs[:, 18:21], goal)
-                axes[i].set_title(f"Lambda: {lambdas[i]}")
-
-            self.cond_lambda = 0
-            fig.tight_layout()
-            wandb.log({"Guided Trajectory": wandb.Image(fig)}, step=it)
-        else:
+        # plot trajectories
+        for i in range(len(guide_scales)):
+            self.alpha = guide_scales[i].item()
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-            fig = plt.figure(figsize=(10, 10), dpi=300)
-            ax = fig.add_subplot(projection="3d" if self.isaac_env else None)
-            self.generate_plot(ax, traj, self.get_model_states(obs), goal)
+            obs_ = self.get_model_states(obs)
+            label = f"Alpha: {guide_scales[i]}" if len(guide_scales) > 1 else None
+            self._draw_trajectory(ax, traj, obs_, goal, color=colors[i], label=label)
+        self.alpha = 0
 
-            fig.tight_layout()
-            wandb.log({"Trajectory": wandb.Image(fig)}, step=it)
+        # format plot
+        if len(guide_scales) > 1:
+            ax.legend()
+        ax.axis("equal")
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        if projection == "3d":
+            ax.set_zticklabels([])  # type: ignore
+        if not self.isaac_env:
+            ax.set_xlim(-0.04, 1.04)
+            ax.set_ylim(-0.04, 1.04)
+        ax.tick_params(axis="both", which="both", length=0)
+        ax.grid(True, linestyle="--", alpha=0.6)
+        plt.tight_layout()
 
-    def generate_plot(self, ax, traj, obs, goal, color="blue", label=None):
+        # save or log
+        if log:
+            name = "Guided Trajectory" if len(guide_scales) > 1 else "Trajectory"
+            wandb.log({name: wandb.Image(fig)}, step=it)
+        else:
+            plt.savefig("data.pdf", bbox_inches="tight")
+            plt.show()
+
+    def _draw_trajectory(self, ax, traj, obs, goal, color=None, label=None):
         traj, obs, goal = traj[0].cpu(), obs[0].cpu(), goal[0].cpu()
         marker_params = {
             "markersize": 35,
@@ -296,10 +313,10 @@ class Policy(nn.Module):
 
         if self.isaac_env:
             c = torch.linspace(0, 1, len(traj)) ** 0.5
-            s = [300] * len(traj)
-            ax.scatter(traj[:, 0], traj[:, 1], traj[:, 2], s=s, c=c, cmap="Reds")
-            ax.plot(obs[0], obs[1], obs[2], "o", **marker_params)
-            ax.plot(goal[0], goal[1], goal[2], "*", **marker_params)
+            s = [100] * len(traj)
+            ax.scatter(traj[:, 0], traj[:, 2], s=s, color=color, label=label)
+            ax.plot(obs[0], obs[2], "o", **marker_params)
+            ax.plot(goal[0], goal[2], "*", **marker_params)
         else:
             c = torch.linspace(0, 1, len(traj)) ** 0.7
             ax.scatter(traj[:, 0], traj[:, 1], c=c, cmap="Reds", s=500)

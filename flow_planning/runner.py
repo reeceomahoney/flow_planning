@@ -161,7 +161,7 @@ class Runner:
                     test_obs_mse = statistics.mean(test_obs_mse)
                     test_act_mse = statistics.mean(test_act_mse)
 
-                    self.policy.plot_trajectory(it)
+                    self.policy.plot(it)
 
             # training
             try:
@@ -286,7 +286,7 @@ class ClassifierRunner(Runner):
                     test_mse.append(mse)
                 test_mse = statistics.mean(test_mse)
 
-                self.policy.plot_trajectory(it)
+                self.policy.plot(it)
 
             # training
             try:

@@ -37,7 +37,6 @@ import sys
 import time
 
 import hydra
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from omegaconf import DictConfig
@@ -109,50 +108,18 @@ def main(agent_cfg: DictConfig):
     runner.load(resume_path)
     policy = runner.policy
 
-    # reset environment
+    # plot trajectory
+    if args_cli.plot:
+        policy.plot(log=False)
+        env.close()
+        simulation_app.close()
+        exit()
+
     obs, _ = env.get_observations()
-    env.reset()
+    # env.reset()
     start = time.time()
-    # simulate environment
     while simulation_app.is_running():
         goal = get_goal(env)
-
-        # plot trajectory
-        if args_cli.plot:
-            lambdas = torch.tensor([0])
-            fig = plt.figure(figsize=(10, 10), dpi=300)
-            ax = fig.add_subplot(projection="3d" if isaac_env else None)
-            colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(lambdas)))
-
-            for i in range(len(lambdas)):
-                policy.alpha = lambdas[i].item()
-                traj = policy.act({"obs": obs, "goal": goal})["obs_traj"]
-                policy.generate_plot(
-                    ax,
-                    traj,
-                    policy.get_model_states(obs),
-                    goal,
-                    color=colors[i],
-                    label=f"Alpha: {lambdas[i]}",
-                )
-
-            # ax.legend()
-            ax.axis("equal")
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-            if isaac_env:
-                ax.set_zticklabels([])  # type: ignore
-            else:
-                ax.set_xlim(-0.04, 1.04)
-                ax.set_ylim(-0.04, 1.04)
-            ax.tick_params(axis="both", which="both", length=0)
-            ax.grid(True, linestyle="--", alpha=0.6)
-            plt.tight_layout()
-            plt.savefig("data.pdf", bbox_inches="tight")
-
-            simulation_app.close()
-            exit()
-
         output = policy.act({"obs": obs, "goal": goal})
 
         if env_name.startswith("Isaac"):
