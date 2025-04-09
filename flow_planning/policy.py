@@ -54,7 +54,6 @@ class Policy(nn.Module):
 
         # diffusion / flow matching
         self.sampling_steps = sampling_steps
-        self.beta_dist = torch.distributions.beta.Beta(1.5, 1.0)
         self.scheduler = DDPMScheduler(self.sampling_steps)
         self.algo = algo  # ddpm or flow
 
@@ -87,6 +86,13 @@ class Policy(nn.Module):
         data = self.process(data)
         x_1 = data["input"]
         x_0 = torch.randn_like(x_1)
+
+        if self.use_refinement and random.random() < 0.5:
+            x_0 = torch.cat([x_0[:, : self.T // 2], x_0[:, self.T // 2 :]], dim=0)
+            x_1 = torch.cat([x_1[:, : self.T // 2], x_1[:, self.T // 2 :]], dim=0)
+            data["obs"] = x_1[:, 0, self.action_dim :]
+            data["goal"] = x_1[:, -1, self.action_dim :]
+
         bsz = x_1.shape[0]
 
         # compute sample and target
