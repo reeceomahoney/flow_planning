@@ -62,3 +62,4 @@ _build
 *.hdf5
 *.png
 data/
+*.pdf
