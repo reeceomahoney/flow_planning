@@ -255,7 +255,7 @@ class Policy(nn.Module):
         return x
 
     def get_model_states(self, x):
-        return x[:, 18:27] if self.isaac_env else x
+        return x[:, :27] if self.isaac_env else x
 
     #################
     # Visualization #
@@ -275,14 +275,16 @@ class Policy(nn.Module):
         ax = fig.add_subplot(projection=projection)
         if len(guide_scales) > 1:
             colors = plt.get_cmap("viridis")(torch.linspace(0, 1, len(guide_scales)))
+        else:
+            colors = ["red"]
 
         # plot trajectories
         for i in range(len(guide_scales)):
             self.alpha = guide_scales[i].item()
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-            obs_ = self.get_model_states(obs)
+            traj_, obs_, goal_ = traj[..., 18:21], obs[:, 18:21], goal[:, 18:21]
             label = f"Alpha: {guide_scales[i]}" if len(guide_scales) > 1 else None
-            self._draw_trajectory(ax, traj, obs_, goal, color=colors[i], label=label)
+            self._draw_trajectory(ax, traj_, obs_, goal_, color=colors[i], label=label)
         self.alpha = 0
 
         # format plot

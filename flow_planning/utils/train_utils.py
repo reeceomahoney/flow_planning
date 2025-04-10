@@ -51,7 +51,7 @@ def create_env(env_name, agent_cfg):
             # create isaac environment
             env = gym.make(env_name, cfg=env_cfg, render_mode=None)
             env = RslRlVecEnvWrapper(env)  # type: ignore
-            agent_cfg.obs_dim = 9
+            agent_cfg.obs_dim = 27
             agent_cfg.act_dim = env.num_actions
 
     return env, agent_cfg, env_cfg
@@ -62,7 +62,22 @@ def get_goal(env):
         goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
         rot_mat = matrix_from_quat(goal[:, 3:])
         ortho6d = rot_mat[..., :2].reshape(-1, 6)
-        goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
+        joint_pos = torch.tensor(
+            [
+                -2.7028e-02,
+                1.4051e00,
+                5.7933e-02,
+                1.4726e00,
+                -8.4857e-02,
+                -8.7760e-01,
+                9.0027e-02,
+                -3.4867e-02,
+                -3.1995e-02,
+            ]
+        )
+        joint_pos = joint_pos.expand(env.num_envs, -1).to(env.device)
+        joint_vel = torch.zeros_like(joint_pos)
+        goal = torch.cat([joint_pos, joint_vel, goal[:, :3], ortho6d], dim=-1)
     else:
         goal = env.goal
         goal = torch.cat([goal, torch.zeros_like(goal)], dim=-1)

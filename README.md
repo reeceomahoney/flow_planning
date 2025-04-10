@@ -10,3 +10,4 @@
 - [ ] simplify normalizer
 - [ ] Swap obs and actions
 - [ ] Simplify command manager
+- [ ] Add IK solver
