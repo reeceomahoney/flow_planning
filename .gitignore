@@ -61,5 +61,6 @@ _build
 *.pkl
 *.hdf5
 *.png
-data/
+data/*
+!data/urdf
 *.pdf

@@ -19,6 +19,7 @@ dependencies = [
   "minari[all]>=0.5.2",
   "pyqt6>=6.8.0",
   "diffusers>=0.32.2",
+  "pin>=2.7.0",
 ]
 
 [build-system]
