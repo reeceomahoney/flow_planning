@@ -39,7 +39,7 @@ class CommandsCfg:
         ),
     )
 
-    # ee_pose = mdp.ScheduledPoseCommandCfg(
+    # ee_pose = mdp.FixedPoseCommandCfg(
     #     asset_name="robot",
     #     body_name="panda_hand",
     #     resampling_time_range=(T_MAX, T_MAX),

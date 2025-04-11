@@ -12,7 +12,6 @@ from collections.abc import Sequence
 import torch
 from omegaconf import MISSING
 
-import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation
 from isaaclab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from isaaclab.managers import CommandTerm
@@ -27,36 +26,10 @@ from isaaclab.utils.math import (
 )
 
 
-class ScheduledPoseCommand(CommandTerm):
-    """Command generator for generating pose commands uniformly.
+class FixedPoseCommand(CommandTerm):
+    cfg: FixedPoseCommandCfg
 
-    The command generator generates poses by sampling positions uniformly within specified
-    regions in cartesian space. For orientation, it samples uniformly the euler angles
-    (roll-pitch-yaw) and converts them into quaternion representation (w, x, y, z).
-
-    The position and orientation commands are generated in the base frame of the robot, and not the
-    simulation world frame. This means that users need to handle the transformation from the
-    base frame to the simulation world frame themselves.
-
-    .. caution::
-
-        Sampling orientations uniformly is not strictly the same as sampling euler angles uniformly.
-        This is because rotations are defined by 3D non-Euclidean space, and the mapping
-        from euler angles to rotations is not one-to-one.
-
-    """
-
-    cfg: ScheduledPoseCommandCfg
-    """Configuration for the command generator."""
-
-    def __init__(self, cfg: ScheduledPoseCommand, env: ManagerBasedRLEnv):
-        """Initialize the command generator class.
-
-        Args:
-            cfg: The configuration parameters for the command generator.
-            env: The environment object.
-        """
-        # initialize the base class
+    def __init__(self, cfg: FixedPoseCommand, env: ManagerBasedRLEnv):
         super().__init__(cfg, env)  # type: ignore
 
         # extract the robot and body index for which the command is generated
@@ -69,9 +42,6 @@ class ScheduledPoseCommand(CommandTerm):
         self.pose_command_b[:, 4] = 1.0
         self.pose_command_w = torch.zeros_like(self.pose_command_b)
         self.current_stage = 0
-        self.cycle_envs = torch.ones(
-            self.num_envs, dtype=torch.bool, device=self.device
-        )
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["orientation_error"] = torch.zeros(
@@ -90,10 +60,6 @@ class ScheduledPoseCommand(CommandTerm):
 
     @property
     def command(self) -> torch.Tensor:
-        """The desired pose command. Shape is (num_envs, 7).
-
-        The first three elements correspond to the position, followed by the quaternion orientation in (w, x, y, z).
-        """
         return self.pose_command_b
 
     """
@@ -121,29 +87,11 @@ class ScheduledPoseCommand(CommandTerm):
         self.metrics["orientation_error"] = torch.norm(rot_error, dim=-1)
 
     def _resample_command(self, env_ids: Sequence[int]):
-        for env_id in env_ids:
-            if self.cycle_envs[env_id]:
-                # Cycle through commands
-                fixed_command = self.cfg.fixed_commands[self.current_stage]
-                fixed_command = torch.tensor(fixed_command, device=self.device)
-
-                # add noise
-                # position_range = (0.9, 1.1)
-                # fixed_command *= math_utils.sample_uniform(
-                #     *position_range, fixed_command.shape, fixed_command.device
-                # )
-
-                self.pose_command_b[env_id, 0] = fixed_command[0]
-                self.pose_command_b[env_id, 1] = fixed_command[1]
-                self.pose_command_b[env_id, 2] = fixed_command[2]
-            else:
-                # Use only the final command
-                final_command = self.cfg.fixed_commands[-1]
-                self.pose_command_b[env_id, 0] = final_command[0]
-                self.pose_command_b[env_id, 1] = final_command[1]
-                self.pose_command_b[env_id, 2] = final_command[2]
-
-        # Increment the current stage and wrap around for cycling envs
+        fixed_command = self.cfg.fixed_commands[self.current_stage]
+        self.pose_command_b[env_ids, 0] = fixed_command[0]
+        self.pose_command_b[env_ids, 1] = fixed_command[1]
+        self.pose_command_b[env_ids, 2] = fixed_command[2]
+        # increment the current stage
         self.current_stage = (self.current_stage + 1) % len(self.cfg.fixed_commands)
 
     def _update_command(self):
@@ -185,22 +133,14 @@ class ScheduledPoseCommand(CommandTerm):
 
 
 @configclass
-class ScheduledPoseCommandCfg(CommandTermCfg):
-    """Configuration for uniform pose command generator."""
-
-    class_type: type = ScheduledPoseCommand
+class FixedPoseCommandCfg(CommandTermCfg):
+    class_type: type = FixedPoseCommand
 
     asset_name: str = MISSING
     """Name of the asset in the environment for which the commands are generated."""
 
     body_name: str = MISSING
     """Name of the body in the asset for which the commands are generated."""
-
-    make_quat_unique: bool = False
-    """Whether to make the quaternion unique or not. Defaults to False.
-
-    If True, the quaternion is made unique by ensuring the real part is positive.
-    """
 
     fixed_commands: list[tuple[float, float, float]] = MISSING
     """List of fixed (x, y, z) commands to cycle through."""

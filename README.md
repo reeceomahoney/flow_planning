@@ -7,7 +7,7 @@
 - [x] Fix value unet
 - [x] Make classifier policy
 - [x] Add data viz script
+- [x] Simplify command manager
 - [ ] simplify normalizer
 - [ ] Swap obs and actions
-- [ ] Simplify command manager
 - [ ] Add IK solver

@@ -17,12 +17,12 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
             func=mdp.reset_joints_fixed, mode="reset"
         )
         self.events.apply_random_force = None  # type: ignore
-        self.commands.ee_pose = mdp.ScheduledPoseCommandCfg(  # type: ignore
+        self.commands.ee_pose = mdp.FixedPoseCommandCfg(  # type: ignore
             asset_name="robot",
             body_name="panda_hand",
             resampling_time_range=(T_MAX, T_MAX),
             debug_vis=True,
-            fixed_commands=[(0.7, 0, 0.2), (0.7, 0, 0.6)],
+            fixed_commands=[(0.7, 0, 0.2)],
         )
 
 
