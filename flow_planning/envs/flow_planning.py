@@ -22,7 +22,7 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
             body_name="panda_hand",
             resampling_time_range=(T_MAX, T_MAX),
             debug_vis=True,
-            fixed_commands=[(0.8, 0, 0.2), (0.8, 0, 0.6)],
+            fixed_commands=[(0.7, 0, 0.2), (0.7, 0, 0.6)],
         )
 
 

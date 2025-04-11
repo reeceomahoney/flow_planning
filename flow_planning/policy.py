@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from flow_planning.envs import MazeEnv, ParticleEnv
 from flow_planning.models.unet import ConditionalUnet1D
-from flow_planning.utils import Normalizer, calculate_return, get_goal
+from flow_planning.utils import IKSolver, Normalizer, calculate_return, get_goal
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
@@ -42,6 +42,7 @@ class Policy(nn.Module):
         self.model = model
         self.env = env
         self.normalizer = normalizer
+        self.ik_solver = IKSolver()
         self.device = device
         self.use_refinement = False
         self.isaac_env = isinstance(self.env, RslRlVecEnvWrapper)
@@ -181,7 +182,7 @@ class Policy(nn.Module):
             # guidance
             if self.alpha > 0:
                 grad = torch.zeros_like(x)
-                grad[..., 9] = 1
+                grad[..., 27] = 1
                 dt = timesteps[i + 1] - timesteps[i]
                 x += self.alpha * (1 - timesteps[i]) * dt * grad.detach()
             elif self.cond_lambda > 0:
@@ -264,7 +265,7 @@ class Policy(nn.Module):
     def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
         obs, _ = self.env.get_observations()
-        goal = get_goal(self.env)
+        goal = get_goal(self.env, self.ik_solver)
 
         # create figure
         guide_scales = torch.tensor([0, 1, 2, 3, 4])
@@ -308,6 +309,7 @@ class Policy(nn.Module):
         if log:
             name = "Guided Trajectory" if len(guide_scales) > 1 else "Trajectory"
             wandb.log({name: wandb.Image(fig)}, step=it)
+            plt.close()
         else:
             plt.savefig("data.pdf", bbox_inches="tight")
             plt.show()

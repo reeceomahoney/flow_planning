@@ -112,7 +112,7 @@ class Runner:
                     total=self.num_steps_per_env, desc="Simulating...", leave=False
                 ) as pbar:
                     while t < self.num_steps_per_env:
-                        goal = get_goal(self.env)
+                        goal = get_goal(self.env, self.policy.ik_solver)
                         actions = self.policy.act({"obs": obs, "goal": goal})["action"]
 
                         # step the environment

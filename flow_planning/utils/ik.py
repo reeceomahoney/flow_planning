@@ -3,7 +3,9 @@ import time
 
 import numpy as np
 import pinocchio
+import torch
 from numpy.linalg import norm, solve
+from torch import Tensor
 
 
 class IKSolver:
@@ -14,19 +16,20 @@ class IKSolver:
         self.data = self.model.createData()
 
         self.JOINT_ID = 7
-        self.oMdes = pinocchio.SE3(np.eye(3), np.array([0.70, 0.0, 0.2]))
 
         self.eps = 1e-4
         self.IT_MAX = 1000
         self.DT = 1e-1
         self.damp = 1e-12
 
-    def solve(self):
-        i = 0
+    def solve(self, position: Tensor, orientation: Tensor):
+        oMdes = pinocchio.SE3(orientation.cpu().numpy(), position.cpu().numpy())
         q = pinocchio.neutral(self.model)
+
+        i = 0
         while True:
             pinocchio.forwardKinematics(self.model, self.data, q)
-            iMd = self.data.oMi[self.JOINT_ID].actInv(self.oMdes)
+            iMd = self.data.oMi[self.JOINT_ID].actInv(oMdes)
             err = pinocchio.log(iMd).vector  # in joint frame
             if norm(err) < self.eps:
                 success = True
@@ -43,7 +46,7 @@ class IKSolver:
             i += 1
 
         if success:
-            return q.flatten().tolist()
+            return Tensor(q.flatten())
         else:
             raise RuntimeError("IK failed to converge")
 
@@ -51,7 +54,9 @@ class IKSolver:
 if __name__ == "__main__":
     ik_solver = IKSolver()
     start_time = time.time()
-    q = ik_solver.solve()
+    posiiton = Tensor([0.5, 0.0, 0.5])
+    orientation = torch.eye(3)
+    q = ik_solver.solve(posiiton, orientation)
     end_time = time.time()
     print("IK solution:", q)
     print(f"IK solved in {end_time - start_time:.4f} seconds")
