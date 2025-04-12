@@ -538,6 +538,24 @@ wheels = [
 ]
 
 [[package]]
+name = "example-robot-data"
+version = "4.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cmeel" },
+    { name = "pin" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/45/8f/fa775f620183db26deeff0caed26b33d268267a2b7ffe6cc0423ca9e8968/example_robot_data-4.3.0.tar.gz", hash = "sha256:4a87f62ef6ac5830e177686e4e85268655aa2b12d9d2a32420b3e8b08023bcc0", size = 114230477 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/0d/eeeebe3bdc00b7f79f8c1c45ce354ce11198e556d462fd7f4d8b4ca68ed3/example_robot_data-4.3.0-1-py310-none-any.whl", hash = "sha256:8a3e521bb4cf3e854c5d8963e74154a14c78673d39185605762008f98616103c", size = 108649689 },
+    { url = "https://files.pythonhosted.org/packages/7d/46/d0bcd00ad75630e5cf458c6028da8252adabdb0deb09f876980a6e390cea/example_robot_data-4.3.0-1-py311-none-any.whl", hash = "sha256:c3a2116b8a892ab75d9f325998c0dee5e9c4c93a50542137592d362047889477", size = 108649689 },
+    { url = "https://files.pythonhosted.org/packages/f5/82/8dc10a4f57c3e035ea87a14399d28e7542f8e1b38f4f34df21d2b9b3a207/example_robot_data-4.3.0-1-py312-none-any.whl", hash = "sha256:ac2a0b74bb3db775d81bc28f612be3015e32cd2427e51c2bfd0176520e2d8ff9", size = 108649689 },
+    { url = "https://files.pythonhosted.org/packages/21/9e/34bfc866873d4a947aa44dde9f6da715ac93012bd0c4db029e42312f05d1/example_robot_data-4.3.0-1-py313-none-any.whl", hash = "sha256:9079ae720f796951549fa89870db2adda279ae908a7129fa2a1049b07d6f01ab", size = 108649690 },
+    { url = "https://files.pythonhosted.org/packages/79/7d/d11c7d9d1d514c479b4d2ea129996bfbafafcf0bb8ea1a1a227b64efa9ee/example_robot_data-4.3.0-1-py38-none-any.whl", hash = "sha256:9413397876aa1a7c74d0b721cc75f2fc9f82a60d33eae073735034200afb163b", size = 108649672 },
+    { url = "https://files.pythonhosted.org/packages/3d/c2/67964bf7f2e648b96a597b434e14143c27bf305a27dd3c45546b5da03340/example_robot_data-4.3.0-1-py39-none-any.whl", hash = "sha256:fa48658e86bb6a12fb1f2e1d1feb453bb842b10d65f7df943cfdac6f9c060373", size = 108649672 },
+]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -579,6 +597,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "diffusers" },
+    { name = "example-robot-data" },
     { name = "gymnasium-robotics" },
     { name = "isaaclab" },
     { name = "isaaclab-assets" },
@@ -597,6 +616,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "diffusers", specifier = ">=0.32.2" },
+    { name = "example-robot-data", specifier = ">=4.3.0" },
     { name = "gymnasium-robotics", specifier = ">=1.2.4" },
     { name = "isaaclab", editable = "IsaacLab/source/isaaclab" },
     { name = "isaaclab-assets", editable = "IsaacLab/source/isaaclab_assets" },
