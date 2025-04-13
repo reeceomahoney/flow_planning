@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from flow_planning.envs import MazeEnv, ParticleEnv
+from flow_planning.envs import ParticleEnv
 from isaaclab.utils.math import matrix_from_quat
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 from isaaclab_tasks.utils import parse_env_cfg
@@ -26,11 +26,6 @@ def calculate_return(traj: Tensor) -> Tensor:
 
 def create_env(env_name, agent_cfg):
     match env_name:
-        case "Maze":
-            env = MazeEnv(agent_cfg)
-            agent_cfg.obs_dim = env.obs_dim
-            agent_cfg.act_dim = env.act_dim
-            env_cfg = None
         case "Particle":
             env = ParticleEnv(
                 num_envs=agent_cfg.num_envs,

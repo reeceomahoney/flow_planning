@@ -10,9 +10,9 @@ from torch import Tensor
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from flow_planning.envs import MazeEnv, ParticleEnv
+from flow_planning.envs import ParticleEnv
 from flow_planning.models.unet import ConditionalUnet1D
-from flow_planning.utils import IKSolver, Normalizer, calculate_return, get_goal
+from flow_planning.utils import Normalizer, calculate_return, get_goal
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
@@ -25,7 +25,7 @@ class Policy(nn.Module):
         self,
         model: ConditionalUnet1D,
         normalizer: Normalizer,
-        env: RslRlVecEnvWrapper | ParticleEnv | MazeEnv,
+        env: RslRlVecEnvWrapper | ParticleEnv,
         obs_dim: int,
         act_dim: int,
         T: int,
@@ -42,7 +42,6 @@ class Policy(nn.Module):
         self.model = model
         self.env = env
         self.normalizer = normalizer
-        self.ik_solver = IKSolver()
         self.device = device
         self.use_refinement = False
         self.isaac_env = isinstance(self.env, RslRlVecEnvWrapper)
@@ -343,7 +342,7 @@ class ClassifierPolicy(Policy):
         model: ConditionalUnet1D,
         classifier: ConditionalUnet1D,
         normalizer: Normalizer,
-        env: RslRlVecEnvWrapper | ParticleEnv | MazeEnv,
+        env: RslRlVecEnvWrapper | ParticleEnv,
         obs_dim: int,
         act_dim: int,
         T: int,
