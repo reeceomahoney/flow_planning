@@ -11,7 +11,7 @@ from omegaconf import OmegaConf
 from rsl_rl.utils import store_code_state
 from tqdm import tqdm, trange
 
-from flow_planning.envs import MazeEnv, ParticleEnv
+from flow_planning.envs import ParticleEnv
 from flow_planning.policy import ClassifierPolicy, Policy
 from flow_planning.utils import (
     ExponentialMovingAverage,
@@ -33,7 +33,7 @@ def process_ep_data(x, new_ids):
 class Runner:
     def __init__(
         self,
-        env: RslRlVecEnvWrapper | MazeEnv | ParticleEnv,
+        env: RslRlVecEnvWrapper | ParticleEnv,
         agent_cfg,
         log_dir: str | None = None,
         device="cpu",
@@ -56,8 +56,6 @@ class Runner:
         # variables
         if isinstance(env, RslRlVecEnvWrapper | ParticleEnv):
             self.num_steps_per_env = self.env.max_episode_length  # type: ignore
-        elif isinstance(env, MazeEnv):
-            self.num_steps_per_env = int(self.cfg.episode_length / 0.1)
         self.log_dir = log_dir
         self.current_learning_iteration = 0
 

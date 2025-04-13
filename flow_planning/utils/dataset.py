@@ -20,7 +20,7 @@ class FlowPlanningDataset(Dataset):
         if env_name.startswith("Isaac"):
             # build path
             current_dir = os.path.dirname(os.path.realpath(__file__))
-            data_directory = "/data/rsl_rl/data.hdf5"
+            data_directory = "/data/ik/data.hdf5"
             dataset_path = current_dir + "/../../" + data_directory
             log.info(f"Loading data from {data_directory}")
 
