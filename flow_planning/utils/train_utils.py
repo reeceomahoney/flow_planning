@@ -57,18 +57,18 @@ def create_env(env_name, agent_cfg):
     return env, agent_cfg, env_cfg
 
 
-def get_goal(env, ik_solver):
+def get_goal(env):
     if isinstance(env, RslRlVecEnvWrapper):
         goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
         rot_mat = matrix_from_quat(goal[:, 3:])
         ortho6d = rot_mat[..., :2].reshape(-1, 6)
+        goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
 
-        # HACK: IK solver isn't parallelized so we are just using the first env, this is wrong
-        joint_pos = ik_solver.solve(goal[0, :3], rot_mat[0])
-
-        joint_pos = joint_pos.expand(env.num_envs, -1).to(env.device)
-        joint_vel = torch.zeros_like(joint_pos)
-        goal = torch.cat([joint_pos, joint_vel, goal[:, :3], ortho6d], dim=-1)
+        # joint pos for (0.7, 0, 0.2)
+        # joint_pos = torch.tensor([-0.0047,  1.2643,  0.0155,  1.2299, -0.0251, -0.8011,  0.0421, -0.0314, -0.0399])  # fmt: off
+        # joint_pos = joint_pos.expand(env.num_envs, -1).to(env.device)
+        # joint_vel = torch.zeros_like(joint_pos)
+        # goal = torch.cat([joint_pos, joint_vel, goal[:, :3], ortho6d], dim=-1)
     else:
         goal = env.goal
         goal = torch.tensor([0, 1, 0.6, -0.6])

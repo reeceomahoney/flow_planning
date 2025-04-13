@@ -92,7 +92,7 @@ class Policy(nn.Module):
             x_0 = torch.cat([x_0[:, : self.T // 2], x_0[:, self.T // 2 :]], dim=0)
             x_1 = torch.cat([x_1[:, : self.T // 2], x_1[:, self.T // 2 :]], dim=0)
             data["obs"] = x_1[:, 0, self.action_dim :]
-            data["goal"] = x_1[:, -1, self.action_dim :]
+            data["goal"] = x_1[:, -1, self.action_dim + 18 :]
 
         bsz = x_1.shape[0]
 
@@ -203,7 +203,7 @@ class Policy(nn.Module):
                 for k, v in data.items()
             }
             data["obs"][bsz:] = midpoint
-            data["goal"][:bsz] = midpoint
+            data["goal"][:bsz] = midpoint[:, 18:27]
 
             for i in range(self.sampling_steps // 2):
                 x = self.inpaint(x, data)
@@ -243,7 +243,7 @@ class Policy(nn.Module):
             returns = torch.ones(obs.shape[0], 1).to(self.device)
 
         obs = self.normalizer.scale_input(obs)
-        goal = self.normalizer.scale_input(data["goal"])
+        goal = self.normalizer.scale_9d_pos(data["goal"])
 
         return {"obs": obs, "input": input, "goal": goal, "returns": returns}
 
@@ -252,7 +252,7 @@ class Policy(nn.Module):
 
     def inpaint(self, x: Tensor, data: dict) -> Tensor:
         x[:, 0, self.action_dim :] = data["obs"]
-        x[:, -1, self.action_dim :] = data["goal"]
+        x[:, -1, self.action_dim + 18 :] = data["goal"]
         return x
 
     def get_model_states(self, x):
@@ -265,7 +265,7 @@ class Policy(nn.Module):
     def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
         obs, _ = self.env.get_observations()
-        goal = get_goal(self.env, self.ik_solver)
+        goal = get_goal(self.env)
 
         # create figure
         guide_scales = torch.tensor([0, 1, 2, 3, 4])
@@ -283,7 +283,7 @@ class Policy(nn.Module):
         for i in range(len(guide_scales)):
             self.alpha = guide_scales[i].item()
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-            traj_, obs_, goal_ = traj[..., 18:21], obs[:, 18:21], goal[:, 18:21]
+            traj_, obs_, goal_ = traj[..., 18:21], obs[:, 18:21], goal
             label = f"Alpha: {guide_scales[i]}" if len(guide_scales) > 1 else None
             self._draw_trajectory(ax, traj_, obs_, goal_, color=colors[i], label=label)
         self.alpha = 0
@@ -326,7 +326,7 @@ class Policy(nn.Module):
 
         if self.isaac_env:
             c = torch.linspace(0, 1, len(traj)) ** 0.5
-            s = [100] * len(traj)
+            s = [300] * len(traj)
             ax.scatter(traj[:, 0], traj[:, 2], s=s, color=color, label=label)
             ax.plot(obs[0], obs[2], "o", **marker_params)
             ax.plot(goal[0], goal[2], "*", **marker_params)

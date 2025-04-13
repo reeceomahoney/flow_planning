@@ -119,7 +119,7 @@ def main(agent_cfg: DictConfig):
     # env.reset()
     start = time.time()
     while simulation_app.is_running():
-        goal = get_goal(env, policy.ik_solver)
+        goal = get_goal(env)
         output = policy.act({"obs": obs, "goal": goal})
 
         if env_name.startswith("Isaac"):
