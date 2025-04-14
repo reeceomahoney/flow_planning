@@ -283,7 +283,7 @@ class Policy(nn.Module):
             self.alpha = guide_scales[i].item()
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
             traj_, obs_, goal_ = traj[..., 18:21], obs[:, 18:21], goal
-            label = f"Alpha: {guide_scales[i]}" if len(guide_scales) > 1 else None
+            label = f"Scale: {guide_scales[i]}" if len(guide_scales) > 1 else None
             self._draw_trajectory(ax, traj_, obs_, goal_, color=colors[i], label=label)
         self.alpha = 0
 
@@ -297,9 +297,8 @@ class Policy(nn.Module):
         # ax.set_yticklabels([])
         if projection == "3d":
             ax.set_zticklabels([])  # type: ignore
-        # if self.isaac_env:
-        #     ax.set_xlim(0.35, 0.84)
-        #     ax.set_ylim(0.16, 0.66)
+        # ax.set_xlim(0.375, 0.725)
+        # ax.set_ylim(0.16, 0.66)
         ax.tick_params(axis="both", which="both", length=0)
         ax.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
@@ -325,9 +324,14 @@ class Policy(nn.Module):
 
         if self.isaac_env:
             c = torch.linspace(0, 1, len(traj)) ** 0.5
-            s = [300] * len(traj)
+            s = [500] * len(traj)
             ax.scatter(traj[:, 0], traj[:, 2], s=s, color=color, label=label)
             ax.plot(obs[0], obs[2], "o", **marker_params)
+            ax.plot(goal[0], goal[2], "o", **marker_params)
+            marker_params["markersize"] = 20
+            marker_params["markerfacecolor"] = "black"
+            ax.plot(obs[0], obs[2], "o", **marker_params)
+            marker_params["markersize"] = 25
             ax.plot(goal[0], goal[2], "*", **marker_params)
         else:
             c = torch.linspace(0, 1, len(traj)) ** 0.7

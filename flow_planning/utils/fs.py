@@ -37,7 +37,7 @@ def get_latest_run(base_path, resume=False):
     target_dir = sorted_directories[1][0] if resume else sorted_directories[0][0]
 
     # get latest model
-    model_files = list(target_dir.glob("model_*.pt"))
+    model_files = list(target_dir.glob("models/model_*.pt"))
     if model_files:
         latest_model_file = max(model_files, key=extract_model_number)
         return latest_model_file
