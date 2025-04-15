@@ -44,7 +44,12 @@ from omegaconf import DictConfig
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
 from flow_planning.runner import ClassifierRunner, Runner
-from flow_planning.utils import create_env, get_goal, get_latest_run
+from flow_planning.utils import (
+    create_env,
+    export_policy_as_jit,
+    get_goal,
+    get_latest_run,
+)
 from isaaclab.markers.visualization_markers import (
     VisualizationMarkers,
     VisualizationMarkersCfg,
@@ -107,6 +112,8 @@ def main(agent_cfg: DictConfig):
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
     policy = runner.policy
+
+    # export_policy_as_jit(policy, ".")
 
     # plot trajectory
     if args_cli.plot:
