@@ -43,7 +43,7 @@ from omegaconf import DictConfig
 
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
-from flow_planning.runner import Runner
+from flow_planning.runner import ClassifierRunner, Runner
 from flow_planning.utils import create_env, get_goal, get_latest_run
 from isaaclab.markers.visualization_markers import (
     VisualizationMarkers,
@@ -91,6 +91,9 @@ def main(agent_cfg: DictConfig):
     ### Create environment
     agent_cfg.num_envs = 1
     env_name = agent_cfg.env.env_name
+    experiment = agent_cfg.experiment.wandb_project
+    if experiment == "classifier":
+        agent_cfg.env.env_name = "Isaac-Franka-Guidance"
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
     isaac_env = env_name.startswith("Isaac")
 
@@ -98,12 +101,14 @@ def main(agent_cfg: DictConfig):
     if isaac_env:
         trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
-    # load model runner
-    runner = Runner(env, agent_cfg, device=agent_cfg.device)
+    if experiment == "classifier":
+        runner = ClassifierRunner(env, agent_cfg, device=agent_cfg.device)
+        log_root_path = os.path.abspath("logs/classifier")
+    else:
+        runner = Runner(env, agent_cfg, device=agent_cfg.device)
+        log_root_path = os.path.abspath("logs/flow_planning")
 
-    # load the checkpoint
-    log_root_path = os.path.abspath("logs/flow_planning")
-    resume_path = get_latest_run(log_root_path)
+    resume_path = str(get_latest_run(log_root_path)) + "/models/model.pt"
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
     policy = runner.policy
