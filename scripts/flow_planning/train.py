@@ -16,7 +16,7 @@ import torch
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
-import flow_planning.envs  # noqa: F401,
+import flow_planning.envs  # noqa: F401
 from flow_planning.runner import ClassifierRunner, Runner
 from flow_planning.utils import create_env
 from isaaclab.utils.io import dump_pickle, dump_yaml
@@ -54,8 +54,8 @@ def main(agent_cfg: DictConfig):
         runner = ClassifierRunner(
             env, agent_cfg, log_dir=log_dir, device=agent_cfg.device
         )
-        model_path = "logs/flow_planning/Mar-25/15-44-13/" + "models/model.pt"
-        runner.load(model_path)
+        model_path = "/home/reece/ws/dev/flow_planning/logs/flow_planning/Apr-14/14-00-45/models/model_50000.pt"
+        runner.load_model(model_path)
     else:
         runner = Runner(env, agent_cfg, log_dir=log_dir, device=agent_cfg.device)
 

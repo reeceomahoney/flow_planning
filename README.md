@@ -8,6 +8,8 @@
 - [x] Make classifier policy
 - [x] Add data viz script
 - [x] Simplify command manager
+- [x] Add IK solver
+- [x] Simplify classifier policy
 - [ ] simplify normalizer
 - [ ] Swap obs and actions
-- [ ] Add IK solver
+- [ ] Simplify classifier runner

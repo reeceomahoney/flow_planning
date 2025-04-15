@@ -180,8 +180,7 @@ class Policy(nn.Module):
 
             # guidance
             if self.alpha > 0:
-                grad = torch.zeros_like(x)
-                grad[..., 27] = 1
+                grad = self._guide_fn(x, timesteps[i + 1], data)
                 dt = timesteps[i + 1] - timesteps[i]
                 x += self.alpha * (1 - timesteps[i]) * dt * grad.detach()
             elif self.cond_lambda > 0:
@@ -219,6 +218,11 @@ class Policy(nn.Module):
         # denormalize
         # x = self.normalizer.clip(x)
         return self.normalizer.inverse_scale_output(x)
+
+    def _guide_fn(self, x: Tensor, t: Tensor, data: dict) -> Tensor:
+        grad = torch.zeros_like(x)
+        grad[..., 27] = 1
+        return grad
 
     ###################
     # Data processing #
@@ -407,70 +411,11 @@ class ClassifierPolicy(Policy):
 
         return F.mse_loss(pred_value, data["returns"]).item()
 
-    @torch.no_grad()
-    def forward(self, data: dict) -> torch.Tensor:
-        # sample noise
-        bsz = data["obs"].shape[0]
-        x = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
-
-        if self.algo == "flow":
-            timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
-        elif self.algo == "ddpm":
-            self.scheduler.set_timesteps(self.sampling_steps, self.device)
-            timesteps = self.scheduler.timesteps
-
-        # inference
-        for i in range(self.sampling_steps):
-            x = torch.cat([x] * 2) if self.cond_lambda > 0 else x
-            x = self.inpaint(x, data)
-
-            if self.algo == "flow":
-                x = self.step(x, timesteps[i], timesteps[i + 1], data)
-            elif self.algo == "ddpm":
-                t = timesteps[i].view(-1, 1, 1).expand(bsz, 1, 1).float()
-                out = self.model(x, t, data)
-                x = self.scheduler.step(out, timesteps[i], x).prev_sample  # type: ignore
-
-            # guidance
-            if self.alpha > 0:
-                with torch.enable_grad():
-                    x_grad = x.detach().clone().requires_grad_(True)
-                    y = self.classifier(x_grad, expand_t(timesteps[i + 1], bsz), data)
-                    grad = torch.autograd.grad(y.sum(), x_grad, create_graph=True)[0]
-                    dt = timesteps[i + 1] - timesteps[i]
-                    x += self.alpha * (1 - timesteps[i]) * dt * grad.detach()
-
-        x = self.inpaint(x, data)
-
-        # refinement step
-        if self.use_refinement:
-            midpoint = x[:, self.T // 2, self.action_dim :].clone()
-            x_0 = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
-            x = 0.5 * x_0 + 0.5 * x
-            x = torch.cat([x[:, : self.T // 2], x[:, self.T // 2 :]], dim=0)
-
-            data = {
-                k: torch.cat([v] * 2) if v is not None else None
-                for k, v in data.items()
-            }
-            data["obs"][bsz:] = midpoint
-            data["goal"][:bsz] = midpoint[:, 18:27]
-
-            for i in range(self.sampling_steps // 2):
-                x = self.inpaint(x, data)
-                x = self.step(
-                    x,
-                    timesteps[i + self.sampling_steps // 2],
-                    timesteps[i + 1 + self.sampling_steps // 2],
-                    data,
-                )
-
-            x = self.inpaint(x, data)
-            x = torch.cat([x[:bsz], x[bsz:]], dim=1)
-
-        # denormalize
-        x = self.normalizer.clip(x)
-        return self.normalizer.inverse_scale_output(x)
+    @torch.enable_grad()
+    def _guide_fn(self, x: Tensor, t: Tensor, data: dict) -> Tensor:
+        x = x.detach().clone().requires_grad_(True)
+        y = self.classifier(x, expand_t(t, x.shape[0]), data)
+        return torch.autograd.grad(y.sum(), x, create_graph=True)[0]
 
     @torch.no_grad()
     def truncated_forward(

@@ -326,7 +326,7 @@ class ClassifierRunner(Runner):
                 step=locs["it"],
             )
 
-    def save(self, path, infos=None):
+    def save(self, path):
         if self.use_ema:
             self.ema_helper.store(self.policy.parameters())
             self.ema_helper.copy_to(self.policy.parameters())
@@ -337,7 +337,6 @@ class ClassifierRunner(Runner):
             "norm_state_dict": self.policy.normalizer.state_dict(),
             "classifier_state_dict": self.policy.classifier.state_dict(),
             "iter": self.current_learning_iteration,
-            "infos": infos,
         }
         torch.save(saved_dict, path)
 
@@ -350,3 +349,7 @@ class ClassifierRunner(Runner):
         self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
         self.policy.normalizer.load_state_dict(loaded_dict["norm_state_dict"])
         self.policy.classifier.load_state_dict(loaded_dict["classifier_state_dict"])
+
+    def load_model(self, path):
+        loaded_dict = torch.load(path, map_location=self.device)
+        self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
