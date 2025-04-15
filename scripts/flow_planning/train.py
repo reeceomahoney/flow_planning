@@ -67,13 +67,11 @@ def main(agent_cfg: DictConfig):
         dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
         dump_pickle(os.path.join(log_dir, "params", "env.pkl"), env_cfg)
 
-    # run training
     runner.learn()
 
-    # close the simulator
     env.close()
+    simulation_app.close()
 
 
 if __name__ == "__main__":
     main()
-    simulation_app.close()

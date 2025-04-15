@@ -95,11 +95,6 @@ def main(agent_cfg: DictConfig):
     if experiment == "classifier":
         agent_cfg.env.env_name = "Isaac-Franka-Guidance"
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
-    isaac_env = env_name.startswith("Isaac")
-
-    # create trajectory visualizer
-    if isaac_env:
-        trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     if experiment == "classifier":
         runner = ClassifierRunner(env, agent_cfg, device=agent_cfg.device)
@@ -120,6 +115,10 @@ def main(agent_cfg: DictConfig):
         simulation_app.close()
         exit()
 
+    # create trajectory visualizer
+    if env_name.startswith("Isaac"):
+        trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
+
     obs, _ = env.get_observations()
     # env.reset()
     start = time.time()
@@ -139,8 +138,8 @@ def main(agent_cfg: DictConfig):
                 time.sleep(1 / 30 - (end - start))
             start = time.time()
 
-    # close the simulator
     env.close()
+    simulation_app.close()
 
 
 if __name__ == "__main__":
@@ -148,4 +147,3 @@ if __name__ == "__main__":
     sys.argv.append("hydra.run.dir=.")
     sys.argv.append("hydra/job_logging=disabled")
     main()
-    simulation_app.close()
