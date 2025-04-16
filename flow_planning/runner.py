@@ -261,11 +261,8 @@ class Runner:
 class ClassifierRunner(Runner):
     def _create_policy(self):
         model = hydra.utils.instantiate(self.cfg.model)
-        classifier = hydra.utils.instantiate(self.cfg.model, value=True)
         normalizer = Normalizer(self.train_loader, self.cfg.scaling, self.device)
-        self.policy = ClassifierPolicy(
-            model, classifier, normalizer, self.env, **self.cfg.policy
-        )
+        self.policy = ClassifierPolicy(model, normalizer, self.env, **self.cfg.policy)
 
     def learn(self):
         self.policy.train()

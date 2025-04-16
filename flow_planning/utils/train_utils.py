@@ -13,15 +13,15 @@ from isaaclab_tasks.utils import parse_env_cfg
 
 def check_collisions(traj: Tensor) -> Tensor:
     """0 if in collision, 1 otherwise"""
-    x_mask = (traj[..., 0] >= 0.55) & (traj[..., 0] <= 0.65)
-    y_mask = (traj[..., 1] >= -0.8) & (traj[..., 1] <= 0.8)
-    z_mask = (traj[..., 2] >= 0.0) & (traj[..., 2] <= 0.6)
+    x_mask = (traj[..., 0] >= 0.5) & (traj[..., 0] <= 0.6)
+    y_mask = (traj[..., 1] >= -0.5) & (traj[..., 1] <= 0.5)
+    z_mask = (traj[..., 2] >= 0.0) & (traj[..., 2] <= 0.5)
     return ~(x_mask & y_mask & z_mask)
 
 
-def calculate_return(traj: Tensor) -> Tensor:
-    collision_mask = check_collisions(traj).float()
-    return torch.sum(collision_mask, dim=-1, keepdim=True)
+def calculate_return(obs: Tensor) -> Tensor:
+    collision_mask = check_collisions(obs[..., 18:21]).float()
+    return collision_mask.unsqueeze(-1)
 
 
 def create_env(env_name, agent_cfg):

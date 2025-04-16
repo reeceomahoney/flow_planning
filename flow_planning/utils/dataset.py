@@ -233,7 +233,7 @@ def get_dataloaders(
 
     # calculate value range
     dl = train_dataloader.dataset.dataset.dataset  # type: ignore
-    use_value_range = False
+    use_value_range = True
     if use_value_range:
         # gammas = torch.tensor([0.99**i for i in range(T)])
         returns = []

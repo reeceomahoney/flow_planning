@@ -1,7 +1,6 @@
 _target_: flow_planning.models.unet.ConditionalUnet1D
 obs_dim: ${obs_dim}
 act_dim: ${act_dim}
-T: ${env.T}
 cond_dim: 64
 down_dims: [64, 256, 512]
 device: ${device}

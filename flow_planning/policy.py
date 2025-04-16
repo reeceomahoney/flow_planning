@@ -11,8 +11,10 @@ from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from flow_planning.envs import ParticleEnv
+from flow_planning.models.classifier import ClassifierMLP
 from flow_planning.models.unet import ConditionalUnet1D
 from flow_planning.utils import Normalizer, calculate_return, get_goal
+from flow_planning.utils.train_utils import SinusoidalPosEmb
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
@@ -182,7 +184,7 @@ class Policy(nn.Module):
             if self.alpha > 0:
                 grad = self._guide_fn(x, timesteps[i + 1], data)
                 dt = timesteps[i + 1] - timesteps[i]
-                x += self.alpha * (1 - timesteps[i]) * dt * grad.detach()
+                x += self.alpha * (1 - timesteps[i + 1]) / timesteps[i + 1] * dt * grad
             elif self.cond_lambda > 0:
                 x_cond, x_uncond = x.chunk(2)
                 x = x_uncond + self.cond_lambda * (x_cond - x_uncond)
@@ -271,7 +273,7 @@ class Policy(nn.Module):
         goal = get_goal(self.env)
 
         # create figure
-        guide_scales = torch.tensor([0, 1, 2, 3, 4])
+        guide_scales = torch.tensor([0, 1, 2, 3, 4]) * 5
         # projection = "3d" if self.isaac_env else None
         projection = None
         plt.rcParams.update({"font.size": 24})
@@ -348,7 +350,6 @@ class ClassifierPolicy(Policy):
     def __init__(
         self,
         model: ConditionalUnet1D,
-        classifier: ConditionalUnet1D,
         normalizer: Normalizer,
         env: RslRlVecEnvWrapper | ParticleEnv,
         obs_dim: int,
@@ -379,7 +380,7 @@ class ClassifierPolicy(Policy):
             device,
             algo,
         )
-        self.classifier = classifier
+        self.classifier = ClassifierMLP(obs_dim + act_dim, 32, device)
         self.optimizer = AdamW(self.classifier.parameters(), lr=lr)
         self.lr_scheduler = CosineAnnealingLR(self.optimizer, T_max=num_iters)
 
@@ -391,7 +392,7 @@ class ClassifierPolicy(Policy):
         x, t = self.truncated_forward(data, n)
 
         # compute model output
-        pred_value = self.classifier(x, t, data)
+        pred_value = self.classifier(x, t)
         loss = F.mse_loss(pred_value, data["returns"])
         # update model
         self.optimizer.zero_grad()
@@ -407,20 +408,19 @@ class ClassifierPolicy(Policy):
         # compute partially denoised sample
         n = random.randint(0, self.sampling_steps - 1)
         x, t = self.truncated_forward(data, n)
-        pred_value = self.classifier(x, t, data)
+        pred_value = self.classifier(x, t)
 
         return F.mse_loss(pred_value, data["returns"]).item()
 
     @torch.enable_grad()
     def _guide_fn(self, x: Tensor, t: Tensor, data: dict) -> Tensor:
         x = x.detach().clone().requires_grad_(True)
-        y = self.classifier(x, expand_t(t, x.shape[0]), data)
-        return torch.autograd.grad(y.sum(), x, create_graph=True)[0]
+        y = self.classifier(x, t)
+        grad = torch.autograd.grad(y.sum(), x, create_graph=True)[0]
+        return grad[..., : self.input_dim].detach()
 
     @torch.no_grad()
-    def truncated_forward(
-        self, data: dict, n: int
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def truncated_forward(self, data: dict, n: int) -> tuple[Tensor, Tensor]:
         # sample noise
         bsz = data["obs"].shape[0]
         x = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
@@ -430,6 +430,9 @@ class ClassifierPolicy(Policy):
         # inference
         # TODO: change this to batch samples from every step
         for i in range(n):
+            x = self.inpaint(x, data)
             x = self.step(x, time_steps[i], time_steps[i + 1], data)
 
-        return x, expand_t(time_steps[-1], bsz)
+        x = self.inpaint(x, data)
+
+        return x, time_steps[-1]

@@ -10,6 +10,9 @@
 - [x] Simplify command manager
 - [x] Add IK solver
 - [x] Simplify classifier policy
+- [x] Make classifier mlp
 - [ ] simplify normalizer
 - [ ] Swap obs and actions
 - [ ] Simplify classifier runner
+- [ ] Batch classifier training
+- [ ] Fix jit tracing
