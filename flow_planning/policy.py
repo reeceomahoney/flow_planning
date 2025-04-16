@@ -387,13 +387,20 @@ class ClassifierPolicy(Policy):
     def update(self, data: dict) -> float:
         data = self.process(data)
 
-        # compute partially denoised sample
-        n = random.randint(0, self.sampling_steps)
-        x, t = self.truncated_forward(data, n)
-
+        # compute partially denoised samples
+        samples = self.batched_forward(data)
+        x = samples["x"].reshape(-1, self.T, self.input_dim)
+        t = samples["t"].reshape(-1, 1).expand(-1, data["obs"].shape[0])
+        t = t.reshape(-1)
         # compute model output
         pred_value = self.classifier(x, t)
-        loss = F.mse_loss(pred_value, data["returns"])
+
+        # calculate loss
+        ret = data["returns"].unsqueeze(0)
+        ret = ret.expand(self.sampling_steps + 1, -1, -1, -1)
+        ret = ret.reshape(-1, self.T, 1)
+        loss = F.mse_loss(pred_value, ret)
+
         # update model
         self.optimizer.zero_grad()
         loss.backward()
@@ -405,12 +412,19 @@ class ClassifierPolicy(Policy):
     def test(self, data: dict) -> float:
         data = self.process(data)
 
-        # compute partially denoised sample
-        n = random.randint(0, self.sampling_steps - 1)
-        x, t = self.truncated_forward(data, n)
+        # compute partially denoised samples
+        samples = self.batched_forward(data)
+        x = samples["x"].reshape(-1, self.T, self.input_dim)
+        t = samples["t"].reshape(-1, 1).expand(-1, 200)
+        t = t.reshape(-1)
+        # compute model output
         pred_value = self.classifier(x, t)
 
-        return F.mse_loss(pred_value, data["returns"]).item()
+        # calculate loss
+        ret = data["returns"].unsqueeze(0)
+        ret = ret.expand(self.sampling_steps + 1, -1, -1, -1)
+        ret = ret.reshape(-1, self.T, 1)
+        return F.mse_loss(pred_value, ret).item()
 
     @torch.enable_grad()
     def _guide_fn(self, x: Tensor, t: Tensor, data: dict) -> Tensor:
@@ -420,19 +434,23 @@ class ClassifierPolicy(Policy):
         return grad[..., : self.input_dim].detach()
 
     @torch.no_grad()
-    def truncated_forward(self, data: dict, n: int) -> tuple[Tensor, Tensor]:
+    def batched_forward(self, data: dict) -> dict:
         # sample noise
         bsz = data["obs"].shape[0]
         x = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
         time_steps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
-        time_steps = time_steps[: n + 1]
+
+        samples = {"x": [], "t": time_steps}
 
         # inference
-        # TODO: change this to batch samples from every step
-        for i in range(n):
+        for i in range(self.sampling_steps):
             x = self.inpaint(x, data)
+            samples["x"].append(x)
+
             x = self.step(x, time_steps[i], time_steps[i + 1], data)
 
         x = self.inpaint(x, data)
+        samples["x"].append(x)
+        samples["x"] = torch.stack(samples["x"], dim=0)
 
-        return x, time_steps[-1]
+        return samples
