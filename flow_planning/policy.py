@@ -380,7 +380,7 @@ class ClassifierPolicy(Policy):
             device,
             algo,
         )
-        self.classifier = ClassifierMLP(obs_dim + act_dim, 32, device)
+        self.classifier = ClassifierMLP(obs_dim + act_dim, device)
         self.optimizer = AdamW(self.classifier.parameters(), lr=lr)
         self.lr_scheduler = CosineAnnealingLR(self.optimizer, T_max=num_iters)
 
@@ -415,7 +415,7 @@ class ClassifierPolicy(Policy):
         # compute partially denoised samples
         samples = self.batched_forward(data)
         x = samples["x"].reshape(-1, self.T, self.input_dim)
-        t = samples["t"].reshape(-1, 1).expand(-1, 200)
+        t = samples["t"].reshape(-1, 1).expand(-1, data["obs"].shape[0])
         t = t.reshape(-1)
         # compute model output
         pred_value = self.classifier(x, t)

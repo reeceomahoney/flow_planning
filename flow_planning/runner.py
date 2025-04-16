@@ -302,7 +302,7 @@ class ClassifierRunner(Runner):
 
                 self.log(locals())
                 if it % self.cfg.eval_interval == 0:
-                    self.save(os.path.join(self.log_dir, "models", "model.pt"))
+                    self.save(os.path.join(self.log_dir, "models", f"model_{it}.pt"))
 
         if self.log_dir is not None:
             self.save(os.path.join(self.log_dir, "models", "model.pt"))
