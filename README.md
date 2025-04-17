@@ -12,7 +12,7 @@
 - [x] Simplify classifier policy
 - [x] Make classifier mlp
 - [x] Batch classifier training
+- [x] Simplify classifier runner
 - [ ] simplify normalizer
 - [ ] Swap obs and actions
-- [ ] Simplify classifier runner
 - [ ] Fix jit tracing

@@ -58,6 +58,7 @@ class Runner:
             self.num_steps_per_env = self.env.max_episode_length  # type: ignore
         self.log_dir = log_dir
         self.current_learning_iteration = 0
+        self.simulate = self._set_simulate()
 
         # logging
         if self.log_dir is not None:
@@ -80,19 +81,23 @@ class Runner:
         normalizer = Normalizer(self.train_loader, self.cfg.scaling, self.device)
         self.policy = Policy(model, normalizer, self.env, **self.cfg.policy)
 
+    def _set_simulate(self):
+        return True
+
     def learn(self):
         obs, _ = self.env.get_observations()
         obs = obs.to(self.device)
         self.policy.train()
 
-        rewbuffer = deque()
-        lenbuffer = deque()
-        cur_reward_sum = torch.zeros(
-            self.env.num_envs, dtype=torch.float, device=self.device
-        )
-        cur_episode_length = torch.zeros(
-            self.env.num_envs, dtype=torch.float, device=self.device
-        )
+        if self.simulate:
+            rewbuffer = deque()
+            lenbuffer = deque()
+            cur_reward_sum = torch.zeros(
+                self.env.num_envs, dtype=torch.float, device=self.device
+            )
+            cur_episode_length = torch.zeros(
+                self.env.num_envs, dtype=torch.float, device=self.device
+            )
 
         start_iter = self.current_learning_iteration
         tot_iter = int(start_iter + self.cfg.num_iters)
@@ -101,7 +106,7 @@ class Runner:
             start = time.time()
 
             # simulation
-            if it % self.cfg.sim_interval == 0:
+            if self.simulate and it % self.cfg.sim_interval == 0:
                 t = 0
                 ep_infos = []
                 self.env.reset()
@@ -149,15 +154,11 @@ class Runner:
             # evaluation
             if it % self.cfg.eval_interval == 0:
                 with InferenceContext(self):
-                    test_mse, test_obs_mse, test_act_mse = [], [], []
+                    test_mse = []
                     for batch in tqdm(self.test_loader, desc="Testing...", leave=False):
-                        mse, obs_mse, act_mse = self.policy.test(batch)
+                        mse = self.policy.test(batch)
                         test_mse.append(mse)
-                        test_obs_mse.append(obs_mse)
-                        test_act_mse.append(act_mse)
                     test_mse = statistics.mean(test_mse)
-                    test_obs_mse = statistics.mean(test_obs_mse)
-                    test_act_mse = statistics.mean(test_act_mse)
 
                     self.policy.plot(it)
 
@@ -196,16 +197,9 @@ class Runner:
         )
         # evaluation
         if locs["it"] % self.cfg.eval_interval == 0:
-            wandb.log(
-                {
-                    "Loss/test_mse": locs["test_mse"],
-                    "Loss/test_obs_mse": locs["test_obs_mse"],
-                    "Loss/test_act_mse": locs["test_act_mse"],
-                },
-                step=locs["it"],
-            )
+            wandb.log({"Loss/test_mse": locs["test_mse"]}, step=locs["it"])
         # simulation
-        if locs["it"] % self.cfg.sim_interval == 0:
+        if self.simulate and locs["it"] % self.cfg.sim_interval == 0:
             if locs["ep_infos"]:
                 for key in locs["ep_infos"][0]:
                     # get the mean of each ep info value
@@ -246,6 +240,9 @@ class Runner:
             "norm_state_dict": self.policy.normalizer.state_dict(),
             "iter": self.current_learning_iteration,
         }
+        if not self.simulate:
+            saved_dict["classifier_state_dict"] = self.policy.classifier.state_dict()
+
         torch.save(saved_dict, path)
 
         if self.use_ema:
@@ -256,6 +253,8 @@ class Runner:
         self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
         self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
         self.policy.normalizer.load_state_dict(loaded_dict["norm_state_dict"])
+        if not self.simulate:
+            self.policy.classifier.load_state_dict(loaded_dict["classifier_state_dict"])
 
 
 class ClassifierRunner(Runner):
@@ -264,88 +263,8 @@ class ClassifierRunner(Runner):
         normalizer = Normalizer(self.train_loader, self.cfg.scaling, self.device)
         self.policy = ClassifierPolicy(model, normalizer, self.env, **self.cfg.policy)
 
-    def learn(self):
-        self.policy.train()
-
-        start_iter = self.current_learning_iteration
-        tot_iter = int(start_iter + self.cfg.num_iters)
-        generator = iter(self.train_loader)
-        for it in trange(start_iter, tot_iter, dynamic_ncols=True):
-            start = time.time()
-
-            # evaluation
-            if it % self.cfg.eval_interval == 0:
-                test_mse = []
-                for batch in tqdm(self.test_loader, desc="Testing...", leave=False):
-                    mse = self.policy.test(batch)
-                    test_mse.append(mse)
-                test_mse = statistics.mean(test_mse)
-
-                self.policy.plot(it)
-
-            # training
-            try:
-                batch = next(generator)
-            except StopIteration:
-                generator = iter(self.train_loader)
-                batch = next(generator)
-
-            loss = self.policy.update(batch)
-            self.ema_helper.update(self.policy.parameters())
-
-            # logging
-            self.current_learning_iteration = it
-            if self.log_dir is not None and it % self.cfg.log_interval == 0:
-                # timing
-                stop = time.time()
-                iter_time = stop - start
-
-                self.log(locals())
-                if it % self.cfg.eval_interval == 0:
-                    self.save(os.path.join(self.log_dir, "models", f"model_{it}.pt"))
-
-        if self.log_dir is not None:
-            self.save(os.path.join(self.log_dir, "models", "model.pt"))
-
-    def log(self, locs: dict):
-        # training
-        wandb.log(
-            {
-                "Loss/loss": locs["loss"],
-                "Perf/iter_time": locs["iter_time"] / self.cfg.log_interval,
-            },
-            step=locs["it"],
-        )
-        # evaluation
-        if locs["it"] % self.cfg.eval_interval == 0:
-            wandb.log(
-                {"Loss/test_mse": locs["test_mse"]},
-                step=locs["it"],
-            )
-
-    def save(self, path):
-        if self.use_ema:
-            self.ema_helper.store(self.policy.parameters())
-            self.ema_helper.copy_to(self.policy.parameters())
-
-        saved_dict = {
-            "model_state_dict": self.policy.model.state_dict(),
-            "optimizer_state_dict": self.policy.optimizer.state_dict(),
-            "norm_state_dict": self.policy.normalizer.state_dict(),
-            "classifier_state_dict": self.policy.classifier.state_dict(),
-            "iter": self.current_learning_iteration,
-        }
-        torch.save(saved_dict, path)
-
-        if self.use_ema:
-            self.ema_helper.restore(self.policy.parameters())
-
-    def load(self, path):
-        loaded_dict = torch.load(path, map_location=self.device)
-        self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
-        self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
-        self.policy.normalizer.load_state_dict(loaded_dict["norm_state_dict"])
-        self.policy.classifier.load_state_dict(loaded_dict["classifier_state_dict"])
+    def _set_simulate(self):
+        return False
 
     def load_model(self, path):
         loaded_dict = torch.load(path, map_location=self.device)

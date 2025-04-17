@@ -115,17 +115,12 @@ class Policy(nn.Module):
         return loss.item()
 
     @torch.no_grad()
-    def test(self, data: dict) -> tuple[float, float, float]:
+    def test(self, data: dict) -> float:
         data = self.process(data)
         x = self.forward(data)
-
-        # calculate losses
+        # calculate loss
         input = self.normalizer.inverse_scale_output(data["input"])
-        loss = F.mse_loss(x, input, reduction="none")
-        obs_loss = loss[:, :, self.action_dim :].mean().item()
-        action_loss = loss[:, :, : self.action_dim].mean().item()
-
-        return loss.mean().item(), obs_loss, action_loss
+        return F.mse_loss(x, input).item()
 
     #####################
     # Inference backend #
