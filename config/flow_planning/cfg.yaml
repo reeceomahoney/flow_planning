@@ -17,7 +17,7 @@ num_iters: 5e5
 log_interval: 100
 eval_interval: 1e3
 sim_interval: 5e3
-save_interval: 1e4
+save_interval: ${experiment.save_interval}
 device: cuda
 ema_decay: 0.995
 use_ema: True
