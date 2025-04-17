@@ -52,7 +52,10 @@ def reset_joints_fixed(
     idx = cmd_manager.current_stage
 
     rel_pos_list = [
+        # joint pos for (0.5, -0.3, 0.2)
         [0.1805, 0.9034, -0.7486, 0.7486, 0.2993, -0.7417, -0.7022, -0.0473, -0.0339],
+        # joint pos for (0.5, -0.3, 0.6)
+        [-0.0067, 0.7955, -0.6834, 1.6919, 0.1493, -1.7369, -0.5888, -0.0330, -0.0499],
     ]
 
     # build joint position

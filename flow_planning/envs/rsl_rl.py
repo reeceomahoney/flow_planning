@@ -39,13 +39,13 @@ class CommandsCfg:
         ),
     )
 
-    # ee_pose = mdp.FixedPoseCommandCfg(
-    #     asset_name="robot",
-    #     body_name="panda_hand",
-    #     resampling_time_range=(T_MAX, T_MAX),
-    #     debug_vis=True,
-    #     fixed_commands=[(0.8, 0, 0.6), (0.8, 0, 0.2)],
-    # )
+    ee_pose = mdp.FixedPoseCommandCfg(  # type: ignore
+        asset_name="robot",
+        body_name="panda_hand",
+        resampling_time_range=(T_MAX, T_MAX),
+        debug_vis=True,
+        fixed_commands=[(0.5, 0.3, 0.6), (0.5, 0.3, 0.2)],
+    )
 
 
 @configclass
@@ -90,10 +90,10 @@ class EventCfg:
         mode="reset",
         params={"position_range": (0.5, 1.5), "velocity_range": (0.0, 0.0)},
     )
-    # reset_robot_joints = EventTermCfg(
-    #     func=mdp.reset_joints_fixed,
-    #     mode="reset",
-    # )
+    reset_robot_joints = EventTermCfg(
+        func=mdp.reset_joints_fixed,
+        mode="reset",
+    )
 
     # apply_random_force = EventTermCfg(
     #     func=mdp.apply_external_force_torque,
@@ -148,4 +148,4 @@ class FrankaRLEnvCfg(ReachEnvCfg):
         )
 
         # general settings
-        self.episode_length_s = 2 * T_MAX
+        self.episode_length_s = T_MAX

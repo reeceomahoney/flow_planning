@@ -159,7 +159,7 @@ class Policy(nn.Module):
             if self.guide_scale > 0:
                 grad = self._guide_fn(x, timesteps[i + 1], data)
                 dt = timesteps[i + 1] - timesteps[i]
-                weight = self.guide_scale * (1 - timesteps[i + 1]) / timesteps[i + 1]
+                weight = self.guide_scale * (1 - timesteps[i + 1])
                 x += weight * dt * grad
 
         x = self.inpaint(x, data)
@@ -245,7 +245,7 @@ class Policy(nn.Module):
         obs, _ = self.env.get_observations()
         goal = get_goal(self.env)
         # create figure
-        guide_scales = torch.tensor([0, 1, 2, 3, 4])
+        guide_scales = torch.tensor([0])
         # projection = "3d" if self.isaac_env else None
         projection = None
         plt.rcParams.update({"font.size": 24})

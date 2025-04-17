@@ -24,7 +24,7 @@ class CustomIKController(DifferentialIKController):
         # apply the custom scaling factor
         delta_joint_pos = joint_pos_des - joint_pos
         joint_pos_des = joint_pos + 0.25 * delta_joint_pos
-        joint_pos_des += 0.2 * torch.randn_like(joint_pos_des)
+        joint_pos_des += 0.4 * torch.randn_like(joint_pos_des)
         return joint_pos_des
 
 
