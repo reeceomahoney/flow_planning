@@ -14,7 +14,6 @@ from flow_planning.envs import ParticleEnv
 from flow_planning.models.classifier import ClassifierMLP
 from flow_planning.models.unet import ConditionalUnet1D
 from flow_planning.utils import Normalizer, calculate_return, get_goal
-from flow_planning.utils.train_utils import SinusoidalPosEmb
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
@@ -33,8 +32,6 @@ class Policy(nn.Module):
         T: int,
         T_action: int,
         sampling_steps: int,
-        cond_lambda: int,
-        cond_mask_prob: float,
         lr: float,
         num_iters: int,
         device: str,
@@ -45,7 +42,6 @@ class Policy(nn.Module):
         self.env = env
         self.normalizer = normalizer
         self.device = device
-        self.use_refinement = False
         self.isaac_env = isinstance(self.env, RslRlVecEnvWrapper)
 
         # dims
@@ -58,16 +54,12 @@ class Policy(nn.Module):
         self.sampling_steps = sampling_steps
         self.scheduler = DDPMScheduler(self.sampling_steps)
         self.algo = algo  # ddpm or flow
+        self.guide_scale = 0.0
 
         # training
         self.optimizer = AdamW(self.model.parameters(), lr=lr)
         self.lr_scheduler = CosineAnnealingLR(self.optimizer, T_max=num_iters)
-
-        # guidance
-        self.gammas = torch.tensor([0.99**i for i in range(self.T)]).to(device)
-        self.cond_mask_prob = cond_mask_prob
-        self.cond_lambda = cond_lambda
-        self.alpha = 0.0
+        self.use_refinement = False
 
         self.to(device)
 
@@ -106,11 +98,6 @@ class Policy(nn.Module):
             t = torch.randint(0, self.sampling_steps, (bsz, 1, 1)).to(self.device)
             x_t = self.scheduler.add_noise(x_1, x_0, t)  # type: ignore
             target = x_0
-
-        # cfg masking
-        if self.cond_mask_prob > 0:
-            cond_mask = torch.rand(bsz, 1) < self.cond_mask_prob
-            data["returns"][cond_mask] = 0
 
         # compute model output
         x_t = self.inpaint(x_t, data)
@@ -161,16 +148,8 @@ class Policy(nn.Module):
             self.scheduler.set_timesteps(self.sampling_steps, self.device)
             timesteps = self.scheduler.timesteps
 
-        if self.cond_lambda > 0:
-            data = {
-                k: torch.cat([v] * 2) if v is not None else None
-                for k, v in data.items()
-            }
-            data["returns"][bsz:] = 0
-
         # inference
         for i in range(self.sampling_steps):
-            x = torch.cat([x] * 2) if self.cond_lambda > 0 else x
             x = self.inpaint(x, data)
 
             if self.algo == "flow":
@@ -181,15 +160,13 @@ class Policy(nn.Module):
                 x = self.scheduler.step(out, timesteps[i], x).prev_sample  # type: ignore
 
             # guidance
-            if self.alpha > 0:
+            if self.guide_scale > 0:
                 grad = self._guide_fn(x, timesteps[i + 1], data)
                 dt = timesteps[i + 1] - timesteps[i]
-                x += self.alpha * (1 - timesteps[i + 1]) / timesteps[i + 1] * dt * grad
-            elif self.cond_lambda > 0:
-                x_cond, x_uncond = x.chunk(2)
-                x = x_uncond + self.cond_lambda * (x_cond - x_uncond)
+                weight = self.guide_scale * (1 - timesteps[i + 1]) / timesteps[i + 1]
+                x += weight * dt * grad
 
-        x = self.inpaint(x, {"obs": data["obs"][:bsz], "goal": data["goal"][:bsz]})
+        x = self.inpaint(x, data)
 
         # refinement step
         if self.use_refinement:
@@ -272,7 +249,7 @@ class Policy(nn.Module):
         obs, _ = self.env.get_observations()
         goal = get_goal(self.env)
         # create figure
-        guide_scales = torch.tensor([0, 1, 2, 3, 4]) * 5
+        guide_scales = torch.tensor([0, 1, 2, 3, 4])
         # projection = "3d" if self.isaac_env else None
         projection = None
         plt.rcParams.update({"font.size": 24})
@@ -285,12 +262,12 @@ class Policy(nn.Module):
 
         # plot trajectories
         for i in range(len(guide_scales)):
-            self.alpha = guide_scales[i].item()
+            self.guide_scale = guide_scales[i].item()
             traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
-            traj_, obs_, goal_ = traj[..., 18:21], obs[:, 18:21], goal
+            traj_, obs_ = traj[..., 18:21], obs[:, 18:21]
             label = f"Scale: {guide_scales[i]}" if len(guide_scales) > 1 else None
-            self._draw_trajectory(ax, traj_, obs_, goal_, color=colors[i], label=label)
-        self.alpha = 0
+            self._draw_trajectory(ax, traj_, obs_, goal, color=colors[i], label=label)
+        self.guide_scale = 0
 
         # format plot
         if len(guide_scales) > 1:
@@ -356,8 +333,6 @@ class ClassifierPolicy(Policy):
         T: int,
         T_action: int,
         sampling_steps: int,
-        cond_lambda: int,
-        cond_mask_prob: float,
         lr: float,
         num_iters: int,
         device: str,
@@ -372,8 +347,6 @@ class ClassifierPolicy(Policy):
             T,
             T_action,
             sampling_steps,
-            cond_lambda,
-            cond_mask_prob,
             lr,
             num_iters,
             device,

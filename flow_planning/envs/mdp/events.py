@@ -52,7 +52,7 @@ def reset_joints_fixed(
     idx = cmd_manager.current_stage
 
     rel_pos_list = [
-        [0.1918, 0.8668, -0.7509, 0.7055, 0.2882, -0.7171, -0.6966, -0.0469, -0.0428],
+        [0.1805, 0.9034, -0.7486, 0.7486, 0.2993, -0.7417, -0.7022, -0.0473, -0.0339],
     ]
 
     # build joint position
@@ -76,5 +76,8 @@ def reset_joints_fixed(
 
     # set into the physics simulation
     asset.write_joint_state_to_sim(
-        joint_pos, joint_vel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids.tolist()
+        joint_pos,
+        joint_vel,
+        joint_ids=asset_cfg.joint_ids,
+        env_ids=env_ids,  # type: ignore
     )

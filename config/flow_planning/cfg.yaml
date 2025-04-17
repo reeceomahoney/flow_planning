@@ -30,7 +30,6 @@ num_envs: 64
 
 # diffusion
 sampling_steps: 10
-cond_mask_prob: 0.0
 
 policy:
   obs_dim: ${obs_dim}
@@ -38,8 +37,6 @@ policy:
   T: ${env.T}
   T_action: ${env.T_action}
   sampling_steps: ${sampling_steps}
-  cond_lambda: 0
-  cond_mask_prob: ${cond_mask_prob}
   lr: 2e-4
   num_iters: ${num_iters}
   device: ${device}
