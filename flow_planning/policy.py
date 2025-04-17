@@ -271,7 +271,6 @@ class Policy(nn.Module):
         # get obs and goal
         obs, _ = self.env.get_observations()
         goal = get_goal(self.env)
-
         # create figure
         guide_scales = torch.tensor([0, 1, 2, 3, 4]) * 5
         # projection = "3d" if self.isaac_env else None
@@ -297,7 +296,7 @@ class Policy(nn.Module):
         if len(guide_scales) > 1:
             ax.legend(loc="upper left", fontsize=20)
         # ax.axis("equal")
-        ax.set_xlabel("X")
+        ax.set_xlabel("Y")
         ax.set_ylabel("Z")
         # ax.set_xticklabels([])
         # ax.set_yticklabels([])
@@ -331,14 +330,14 @@ class Policy(nn.Module):
         if self.isaac_env:
             c = torch.linspace(0, 1, len(traj)) ** 0.5
             s = [500] * len(traj)
-            ax.scatter(traj[:, 0], traj[:, 2], s=s, color=color, label=label)
-            ax.plot(obs[0], obs[2], "o", **marker_params)
-            ax.plot(goal[0], goal[2], "o", **marker_params)
+            ax.scatter(traj[:, 1], traj[:, 2], s=s, color=color, label=label)
+            ax.plot(obs[1], obs[2], "o", **marker_params)
+            ax.plot(goal[1], goal[2], "o", **marker_params)
             marker_params["markersize"] = 20
             marker_params["markerfacecolor"] = "black"
-            ax.plot(obs[0], obs[2], "o", **marker_params)
+            ax.plot(obs[1], obs[2], "o", **marker_params)
             marker_params["markersize"] = 25
-            ax.plot(goal[0], goal[2], "*", **marker_params)
+            ax.plot(goal[1], goal[2], "*", **marker_params)
         else:
             c = torch.linspace(0, 1, len(traj)) ** 0.7
             ax.scatter(traj[:, 0], traj[:, 1], c=c, cmap="Reds", s=500)

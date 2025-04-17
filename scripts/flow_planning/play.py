@@ -108,7 +108,7 @@ def main(agent_cfg: DictConfig):
         runner = Runner(env, agent_cfg, device=agent_cfg.device)
         log_root_path = os.path.abspath("logs/flow_planning")
 
-    resume_path = str(get_latest_run(log_root_path)) + "/models/model.pt"
+    resume_path = get_latest_run(log_root_path)
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
     policy = runner.policy
