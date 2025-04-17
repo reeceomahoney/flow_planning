@@ -13,8 +13,8 @@ from isaaclab_tasks.utils import parse_env_cfg
 
 def check_collisions(traj: Tensor) -> Tensor:
     """0 if in collision, 1 otherwise"""
-    x_mask = (traj[..., 0] >= 0.5) & (traj[..., 0] <= 0.6)
-    y_mask = (traj[..., 1] >= -0.5) & (traj[..., 1] <= 0.5)
+    x_mask = (traj[..., 0] >= 0.3) & (traj[..., 0] <= 0.7)
+    y_mask = (traj[..., 1] >= -0.1) & (traj[..., 1] <= 0.1)
     z_mask = (traj[..., 2] >= 0.0) & (traj[..., 2] <= 0.5)
     return ~(x_mask & y_mask & z_mask)
 

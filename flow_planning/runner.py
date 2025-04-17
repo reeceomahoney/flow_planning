@@ -160,7 +160,7 @@ class Runner:
                         test_mse.append(mse)
                     test_mse = statistics.mean(test_mse)
 
-                    self.policy.plot(it)
+                self.policy.plot(it)
 
             # training
             try:

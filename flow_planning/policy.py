@@ -38,7 +38,6 @@ class Policy(nn.Module):
         algo: str,
     ):
         super().__init__()
-        self.model = model
         self.env = env
         self.normalizer = normalizer
         self.device = device
@@ -55,13 +54,15 @@ class Policy(nn.Module):
         self.scheduler = DDPMScheduler(self.sampling_steps)
         self.algo = algo  # ddpm or flow
         self.guide_scale = 0.0
-
-        # training
-        self.optimizer = AdamW(self.model.parameters(), lr=lr)
-        self.lr_scheduler = CosineAnnealingLR(self.optimizer, T_max=num_iters)
         self.use_refinement = False
 
+        self._create_model(model, lr, num_iters)
         self.to(device)
+
+    def _create_model(self, model, lr, num_iters):
+        self.model = model
+        self.optimizer = AdamW(self.model.parameters(), lr=lr)
+        self.lr_scheduler = CosineAnnealingLR(self.optimizer, T_max=num_iters)
 
     ############
     # Main API #
@@ -318,36 +319,9 @@ class Policy(nn.Module):
 
 
 class ClassifierPolicy(Policy):
-    def __init__(
-        self,
-        model: ConditionalUnet1D,
-        normalizer: Normalizer,
-        env: RslRlVecEnvWrapper | ParticleEnv,
-        obs_dim: int,
-        act_dim: int,
-        T: int,
-        T_action: int,
-        sampling_steps: int,
-        lr: float,
-        num_iters: int,
-        device: str,
-        algo: str,
-    ):
-        super().__init__(
-            model,
-            normalizer,
-            env,
-            obs_dim,
-            act_dim,
-            T,
-            T_action,
-            sampling_steps,
-            lr,
-            num_iters,
-            device,
-            algo,
-        )
-        self.classifier = ClassifierMLP(obs_dim + act_dim, device)
+    def _create_model(self, model, lr, num_iters):
+        self.model = model
+        self.classifier = ClassifierMLP(self.input_dim, self.device)
         self.optimizer = AdamW(self.classifier.parameters(), lr=lr)
         self.lr_scheduler = CosineAnnealingLR(self.optimizer, T_max=num_iters)
 
