@@ -13,7 +13,7 @@ from isaaclab_tasks.manager_based.manipulation.reach.reach_env_cfg import (
 
 from . import mdp
 
-T_MAX = 64 / 30
+T_MAX = 128 / 30
 
 ##
 # MDP settings
