@@ -1,6 +1,6 @@
 defaults:
   - env: franka
-  - experiment: flow_planning
+  - experiment: classifier
   - model: unet
   - _self_
 
@@ -40,7 +40,6 @@ policy:
   lr: 2e-4
   num_iters: ${num_iters}
   device: ${device}
-  algo: flow
 
 dataset:
   env_name: ${env.env_name}

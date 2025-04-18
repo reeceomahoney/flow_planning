@@ -54,7 +54,7 @@ def main(agent_cfg: DictConfig):
         runner = ClassifierRunner(
             env, agent_cfg, log_dir=log_dir, device=agent_cfg.device
         )
-        model_path = "/home/reece/ws/dev/flow_planning/logs/flow_planning/Apr-17/11-43-43/models/model_40000.pt"
+        model_path = "/home/reece/ws/dev/flow_planning/logs/flow_planning/Apr-17/22-54-36/models/model_50000.pt"
         runner.load_model(model_path)
     else:
         runner = Runner(env, agent_cfg, log_dir=log_dir, device=agent_cfg.device)

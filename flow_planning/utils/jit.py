@@ -16,7 +16,7 @@ class PolicyExporter(torch.nn.Module):
         self.policy = copy.deepcopy(policy)
 
     def forward(self, obs: torch.Tensor, goal: torch.Tensor):
-        return self.act({"obs": obs, "goal": goal})["action"]
+        return self.policy.act({"obs": obs, "goal": goal})["action"]
 
     @torch.jit.export
     def reset(self):

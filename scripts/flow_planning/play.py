@@ -113,7 +113,8 @@ def main(agent_cfg: DictConfig):
     runner.load(resume_path)
     policy = runner.policy
 
-    # export_policy_as_jit(policy, ".")
+    export_policy_as_jit(policy, ".")
+    print(f"[INFO]: Exported policy to {os.path.abspath('.')}")
 
     # plot trajectory
     if args_cli.plot:

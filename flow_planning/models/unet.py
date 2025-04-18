@@ -1,6 +1,5 @@
 import logging
 
-import einops
 import torch
 import torch.nn as nn
 from einops.layers.torch import Rearrange
@@ -127,26 +126,28 @@ class ConditionalUnet1D(nn.Module):
         total_params = sum(p.numel() for p in self.parameters())
         log.info(f"Total parameters: {total_params:e}")
 
-    def forward(self, x: Tensor, t: Tensor, data: dict) -> Tensor:
-        x = einops.rearrange(x, "b t h -> b h t")
+    def forward(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
+        x = x.transpose(1, 2)
         global_feature = self.cond_encoder(t.view(-1, 1)).squeeze(1)
 
         h = []
-        for resnet, resnet2, downsample in self.down_modules:  # type: ignore
-            x = resnet(x, global_feature)
-            x = resnet2(x, global_feature)
+        for mod_list in self.down_modules:
+            assert isinstance(mod_list, nn.ModuleList)
+            x = mod_list[0](x, global_feature)
+            x = mod_list[1](x, global_feature)
             h.append(x)
-            x = downsample(x)
+            x = mod_list[2](x)
 
         for mid_module in self.mid_modules:
             x = mid_module(x, global_feature)
 
-        for resnet, resnet2, upsample in self.up_modules:  # type: ignore
+        for mod_list in self.up_modules:
+            assert isinstance(mod_list, nn.ModuleList)
             x = torch.cat((x, h.pop()), dim=1)
-            x = resnet(x, global_feature)
-            x = resnet2(x, global_feature)
-            x = upsample(x)
+            x = mod_list[0](x, global_feature)
+            x = mod_list[1](x, global_feature)
+            x = mod_list[2](x)
 
         x = self.final_conv(x)
-        x = einops.rearrange(x, "b h t -> b t h")
+        x = x.transpose(1, 2)
         return x

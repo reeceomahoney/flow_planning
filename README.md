@@ -13,6 +13,6 @@
 - [x] Make classifier mlp
 - [x] Batch classifier training
 - [x] Simplify classifier runner
+- [x] Fix jit tracing
 - [ ] simplify normalizer
 - [ ] Swap obs and actions
-- [ ] Fix jit tracing

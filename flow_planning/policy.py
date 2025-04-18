@@ -35,7 +35,6 @@ class Policy(nn.Module):
         lr: float,
         num_iters: int,
         device: str,
-        algo: str,
     ):
         super().__init__()
         self.env = env
@@ -51,8 +50,6 @@ class Policy(nn.Module):
 
         # diffusion / flow matching
         self.sampling_steps = sampling_steps
-        self.scheduler = DDPMScheduler(self.sampling_steps)
-        self.algo = algo  # ddpm or flow
         self.guide_scale = 0.0
         self.use_refinement = False
 
@@ -69,7 +66,7 @@ class Policy(nn.Module):
     ############
 
     @torch.no_grad()
-    def act(self, data: dict) -> dict[str, torch.Tensor]:
+    def act(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         data["obs"] = self.get_model_states(data["obs"])
         data = self.process(data)
         x = self.forward(data)
@@ -127,33 +124,19 @@ class Policy(nn.Module):
     # Inference backend #
     #####################
 
-    def step(self, x_t: Tensor, t_start: Tensor, t_end: Tensor, data: dict) -> Tensor:
-        t_start = expand_t(t_start, x_t.shape[0])
-        t_end = expand_t(t_end, x_t.shape[0])
-        return x_t + (t_end - t_start) * self.model(x_t, t_start, data)
-
-    @torch.no_grad()
-    def forward(self, data: dict) -> torch.Tensor:
+    def forward(self, data: dict[str, Tensor]) -> torch.Tensor:
         # sample noise
         bsz = data["obs"].shape[0]
         x = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
-
-        if self.algo == "flow":
-            timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
-        elif self.algo == "ddpm":
-            self.scheduler.set_timesteps(self.sampling_steps, self.device)
-            timesteps = self.scheduler.timesteps
+        timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
 
         # inference
         for i in range(self.sampling_steps):
             x = self.inpaint(x, data)
 
-            if self.algo == "flow":
-                x = self.step(x, timesteps[i], timesteps[i + 1], data)
-            elif self.algo == "ddpm":
-                t = timesteps[i].view(-1, 1, 1).expand(bsz, 1, 1).float()
-                out = self.model(x, t, data)
-                x = self.scheduler.step(out, timesteps[i], x).prev_sample  # type: ignore
+            t_start = expand_t(timesteps[i], bsz)
+            t_end = expand_t(timesteps[i + 1], bsz)
+            x += (t_end - t_start) * self.model(x, t_start, data)
 
             # guidance
             if self.guide_scale > 0:
@@ -171,30 +154,25 @@ class Policy(nn.Module):
             x = 0.5 * x_0 + 0.5 * x
             x = torch.cat([x[:, : self.T // 2], x[:, self.T // 2 :]], dim=0)
 
-            data = {
-                k: torch.cat([v] * 2) if v is not None else None
-                for k, v in data.items()
-            }
+            data = {k: torch.cat([v] * 2) for k, v in data.items()}
             data["obs"][bsz:] = midpoint
             data["goal"][:bsz] = midpoint[:, 18:27]
 
             for i in range(self.sampling_steps // 2):
                 x = self.inpaint(x, data)
-                x = self.step(
-                    x,
-                    timesteps[i + self.sampling_steps // 2],
-                    timesteps[i + 1 + self.sampling_steps // 2],
-                    data,
-                )
+
+                t_start = expand_t(timesteps[i + self.sampling_steps // 2], bsz)
+                t_end = expand_t(timesteps[i + 1 + self.sampling_steps // 2], bsz)
+                x += (t_end - t_start) * self.model(x, t_start, data)
 
             x = self.inpaint(x, data)
             x = torch.cat([x[:bsz], x[bsz:]], dim=1)
 
         # denormalize
-        # x = self.normalizer.clip(x)
+        x = self.normalizer.clip(x)
         return self.normalizer.inverse_scale_output(x)
 
-    def _guide_fn(self, x: Tensor, t: Tensor, data: dict) -> Tensor:
+    def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
         grad = torch.zeros_like(x)
         grad[..., 27] = 1
         return grad
@@ -203,8 +181,7 @@ class Policy(nn.Module):
     # Data processing #
     ###################
 
-    @torch.no_grad()
-    def process(self, data: dict) -> dict:
+    def process(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         data = self.dict_to_device(data)
 
         if "action" in data:
@@ -223,12 +200,15 @@ class Policy(nn.Module):
         obs = self.normalizer.scale_input(obs)
         goal = self.normalizer.scale_9d_pos(data["goal"])
 
-        return {"obs": obs, "input": input, "goal": goal, "returns": returns}
+        out = {"obs": obs, "goal": goal, "returns": returns}
+        if input is not None:
+            out["input"] = input
+        return out
 
-    def dict_to_device(self, data: dict) -> dict:
+    def dict_to_device(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         return {k: v.to(self.device) for k, v in data.items()}
 
-    def inpaint(self, x: Tensor, data: dict) -> Tensor:
+    def inpaint(self, x: Tensor, data: dict[str, Tensor]) -> Tensor:
         x[:, 0, self.action_dim :] = data["obs"]
         x[:, -1, self.action_dim + 18 :] = data["goal"]
         return x
@@ -245,7 +225,7 @@ class Policy(nn.Module):
         obs, _ = self.env.get_observations()
         goal = get_goal(self.env)
         # create figure
-        guide_scales = torch.tensor([0, 1, 2, 3, 4])
+        guide_scales = torch.tensor([0, 1, 2, 3, 4]) * 5
         # projection = "3d" if self.isaac_env else None
         projection = None
         plt.rcParams.update({"font.size": 24})
@@ -367,11 +347,11 @@ class ClassifierPolicy(Policy):
         ret = ret.reshape(-1, self.T, 1)
         return F.mse_loss(pred_value, ret).item()
 
-    @torch.enable_grad()
-    def _guide_fn(self, x: Tensor, t: Tensor, data: dict) -> Tensor:
+    def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
         x = x.detach().clone().requires_grad_(True)
         y = self.classifier(x, t)
-        grad = torch.autograd.grad(y.sum(), x, create_graph=True)[0]
+        grad = torch.autograd.grad([y.sum()], [x], create_graph=True)[0]
+        assert grad is not None
         return grad[..., : self.input_dim].detach()
 
     @torch.no_grad()
