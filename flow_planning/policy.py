@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from torch import Tensor
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -88,14 +87,9 @@ class Policy(nn.Module):
         bsz = x_1.shape[0]
 
         # compute sample and target
-        if self.algo == "flow":
-            t = torch.rand(bsz, 1, 1).to(self.device)
-            x_t = (1 - t) * x_0 + t * x_1
-            target = x_1 - x_0
-        elif self.algo == "ddpm":
-            t = torch.randint(0, self.sampling_steps, (bsz, 1, 1)).to(self.device)
-            x_t = self.scheduler.add_noise(x_1, x_0, t)  # type: ignore
-            target = x_0
+        t = torch.rand(bsz, 1, 1).to(self.device)
+        x_t = (1 - t) * x_0 + t * x_1
+        target = x_1 - x_0
 
         # compute model output
         x_t = self.inpaint(x_t, data)
@@ -142,7 +136,7 @@ class Policy(nn.Module):
             if self.guide_scale > 0:
                 grad = self._guide_fn(x, timesteps[i + 1], data)
                 dt = timesteps[i + 1] - timesteps[i]
-                weight = self.guide_scale * (1 - timesteps[i + 1]) / timesteps[i + 1]
+                weight = self.guide_scale * (1 - timesteps[i + 1])
                 x += weight * dt * grad
 
         x = self.inpaint(x, data)
@@ -161,8 +155,8 @@ class Policy(nn.Module):
             for i in range(self.sampling_steps // 2):
                 x = self.inpaint(x, data)
 
-                t_start = expand_t(timesteps[i + self.sampling_steps // 2], bsz)
-                t_end = expand_t(timesteps[i + 1 + self.sampling_steps // 2], bsz)
+                t_start = expand_t(timesteps[i + self.sampling_steps // 2], 2 * bsz)
+                t_end = expand_t(timesteps[i + 1 + self.sampling_steps // 2], 2 * bsz)
                 x += (t_end - t_start) * self.model(x, t_start, data)
 
             x = self.inpaint(x, data)
@@ -225,7 +219,7 @@ class Policy(nn.Module):
         obs, _ = self.env.get_observations()
         goal = get_goal(self.env)
         # create figure
-        guide_scales = torch.tensor([0, 1, 2, 3, 4]) * 5
+        guide_scales = torch.tensor([0, 1, 2, 3, 4])
         # projection = "3d" if self.isaac_env else None
         projection = None
         plt.rcParams.update({"font.size": 24})

@@ -1,6 +1,6 @@
 defaults:
   - env: franka
-  - experiment: classifier
+  - experiment: flow_planning
   - model: unet
   - _self_
 
