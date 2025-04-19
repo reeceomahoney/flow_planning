@@ -17,9 +17,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--plot", action="store_true", default=False, help="Whether to plot guidance."
 )
+parser.add_argument(
+    "--export", action="store_true", default=False, help="Whether to export policy."
+)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
-if args_cli.plot:
+if args_cli.plot or args_cli.export:
     args_cli.headless = True
 
 # clear out sys.argv for Hydra
@@ -40,6 +43,7 @@ import hydra
 import numpy as np
 import torch
 from omegaconf import DictConfig
+from scipy.signal import savgol_filter
 
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
@@ -109,12 +113,16 @@ def main(agent_cfg: DictConfig):
         log_root_path = os.path.abspath("logs/flow_planning")
 
     resume_path = get_latest_run(log_root_path)
+    # resume_path = str(resume_path).replace("220000", "50000")
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
     policy = runner.policy
+    policy.guide_scale = 0
 
-    # export_policy_as_jit(policy, ".")
-    # print(f"[INFO]: Exported policy to {os.path.abspath('.')}")
+    if args_cli.export:
+        export_policy_as_jit(policy, ".")
+        print(f"[INFO]: Exported policy to {os.path.abspath('.')}")
+        exit()
 
     # plot trajectory
     if args_cli.plot:
@@ -128,18 +136,23 @@ def main(agent_cfg: DictConfig):
         trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     obs, _ = env.get_observations()
-    # env.reset()
     start = time.time()
     while simulation_app.is_running():
         goal = get_goal(env)
         output = policy.act({"obs": obs, "goal": goal})
 
+        action = output["action"]
+        action[0, -4:, :] = action[0, -5:-4, :]
+        for i in range(policy.action_dim):
+            smoothed = savgol_filter(action[0, :, i].cpu(), window_length=51, polyorder=2)
+            action[0, :, i] = torch.tensor(smoothed).to(action.device)
+
         if env_name.startswith("Isaac"):
-            trajectory_visualizer.visualize(output["obs_traj"][0, :, :3])
+            trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
 
         # env stepping
         for i in range(runner.policy.T_action):
-            obs = env.step(output["action"][:, i])[0]
+            obs = env.step(action[:, i])[0]
 
             end = time.time()
             if end - start < 1 / 30:

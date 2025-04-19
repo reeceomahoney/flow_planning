@@ -28,6 +28,11 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
             debug_vis=True,
             fixed_commands=[(0.5, 0.3, 0.2)],
         )
+        self.actions.arm_action = mdp.JointPositionActionCfg(
+            asset_name="robot",
+            joint_names=["panda_joint.*"],
+            use_default_offset=False,
+        )
 
 
 @configclass
