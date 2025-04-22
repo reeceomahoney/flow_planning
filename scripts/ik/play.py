@@ -66,6 +66,8 @@ def main(agent_cfg: DictConfig):
     if args_cli.collect:
         collector = DataCollector(env, "data/ik/data.hdf5")
         pbar = tqdm(total=args_cli.num_timesteps, desc="Collecting data")
+        min_vals = torch.tensor([0, 0, 0, 0, 0, 0, 0]).to(device=env.device)
+        max_vals = torch.tensor([25, 25, 25, 25, 2.5, 2.5, 2.5]).to(device=env.device)
     else:
         args_cli.num_timesteps = float("inf")
 
@@ -80,7 +82,8 @@ def main(agent_cfg: DictConfig):
 
         # collect data
         if args_cli.collect:
-            collector.add_step(obs, arm_action.joint_pos_des, rew, dones)  # type: ignore
+            action = torch.clamp(arm_action._joint_efforts, min_vals, max_vals)  # type: ignore
+            collector.add_step(obs, action, rew, dones)
 
         obs = next_obs
 
