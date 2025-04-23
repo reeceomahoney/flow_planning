@@ -158,6 +158,9 @@ class FlowPlanningDataset(Dataset):
         self.y_min = all_obs_acts.min(0).values
         self.y_max = all_obs_acts.max(0).values
 
+        self.act_min = all_actions.min(0).values
+        self.act_max = all_actions.max(0).values
+
     # Save the dataset
     def save_dataset(self, obs_splits, actions_splits, filename="dataset.pkl"):
         with open(filename, "wb") as f:

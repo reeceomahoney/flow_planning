@@ -249,7 +249,8 @@ class Runner:
             self.ema_helper.restore(self.policy.parameters())
 
     def load(self, path):
-        loaded_dict = torch.load(path, map_location=self.device)
+        torch.serialization.add_safe_globals([Policy, ClassifierPolicy, Normalizer])
+        loaded_dict = torch.load(path, map_location=self.device, weights_only=True)
         self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
         self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
         self.policy.normalizer.load_state_dict(loaded_dict["norm_state_dict"])

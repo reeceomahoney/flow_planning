@@ -14,6 +14,8 @@ class Normalizer(nn.Module):
         self.register_buffer("y_min", dl.y_min)
         self.register_buffer("r_max", dl.r_max)
         self.register_buffer("r_min", dl.r_min)
+        self.register_buffer("act_max", dl.act_max)
+        self.register_buffer("act_min", dl.act_min)
 
         # gaussian scaling
         self.register_buffer("x_mean", dl.x_mean)
@@ -77,6 +79,12 @@ class Normalizer(nn.Module):
             return (y - self.y_mean) / self.y_std
         else:
             raise ValueError(f"Unknown scaling {self.scaling}")
+
+    def scale_action(self, a) -> torch.Tensor:
+        return (a - self.act_min) / (self.act_max - self.act_min) * 2 - 1
+
+    def inverse_scale_action(self, a) -> torch.Tensor:
+        return (a + 1) * (self.act_max - self.act_min) / 2 + self.act_min
 
     def inverse_scale_output(self, y) -> torch.Tensor:
         if self.scaling == "linear":
