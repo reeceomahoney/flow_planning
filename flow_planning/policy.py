@@ -70,7 +70,8 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         obs = x[:, :, self.action_dim :]
-        action = x[:, : self.T_action, : self.action_dim]
+        # action = x[:, : self.T_action, : self.action_dim]
+        action = torch.zeros((x.shape[0], self.T_action, 7)).to(self.device)
         return {"action": action, "obs_traj": obs}
 
     def update(self, data):
@@ -168,7 +169,7 @@ class Policy(nn.Module):
 
     def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
         grad = torch.zeros_like(x)
-        grad[..., 27] = 1
+        grad[..., 20] = 1
         return grad
 
     ###################
@@ -181,7 +182,7 @@ class Policy(nn.Module):
         if "action" in data:
             # train and test case
             obs = data["obs"][:, 0]
-            input = torch.cat([data["action"], data["obs"]], dim=-1)
+            input = data["obs"]
             input = self.normalizer.scale_output(input)
             returns = calculate_return(data["obs"])
             returns = self.normalizer.scale_return(returns)
