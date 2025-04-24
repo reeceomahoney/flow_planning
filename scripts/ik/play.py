@@ -80,7 +80,7 @@ def main(agent_cfg: DictConfig):
         next_obs, rew, dones, _ = env.step(goal)
 
         # collect data
-        if args_cli.collect:
+        if args_cli.collect and timestep % 2 == 0:
             action = torch.clamp(arm_action._joint_efforts, -max_vals, max_vals)  # type: ignore
             collector.add_step(obs, action, rew, dones)
 
