@@ -69,13 +69,11 @@ class Policy(nn.Module):
         data["obs"] = self.get_model_states(data["obs"])
         data = self.process(data)
         x = self.forward(data)
-        obs = x[:, :, self.action_dim :]
-        action = x[:, : self.T_action, : self.action_dim]
-        return {"action": action, "obs_traj": obs}
+        return {"action": x[..., :7], "traj": x}
 
     def update(self, data):
         data = self.process(data)
-        x_1 = data["input"]
+        x_1 = data["traj"]
         x_0 = torch.randn_like(x_1)
 
         if self.use_refinement and random.random() < 0.5:
@@ -111,8 +109,8 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         # calculate loss
-        input = self.normalizer.inverse_scale_output(data["input"])
-        return F.mse_loss(x, input).item()
+        traj = self.normalizer.inverse_scale_output(data["traj"])
+        return F.mse_loss(x, traj).item()
 
     #####################
     # Inference backend #
@@ -168,7 +166,7 @@ class Policy(nn.Module):
 
     def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
         grad = torch.zeros_like(x)
-        grad[..., 27] = 1
+        grad[..., 20] = 1
         return grad
 
     ###################
@@ -181,34 +179,29 @@ class Policy(nn.Module):
         if "action" in data:
             # train and test case
             obs = data["obs"][:, 0]
-            input = torch.cat([data["action"], data["obs"]], dim=-1)
-            input = self.normalizer.scale_output(input)
+            traj = self.normalizer.scale_obs(data["obs"])
             returns = calculate_return(data["obs"])
             returns = self.normalizer.scale_return(returns)
-            action = self.normalizer.scale_action(data["action"])
         else:
             # sim case
-            input = None
-            action = None
+            traj = None
             obs = data["obs"]
             returns = torch.ones(obs.shape[0], 1).to(self.device)
 
-        obs = self.normalizer.scale_input(obs)
-        goal = self.normalizer.scale_9d_pos(data["goal"])
+        obs = self.normalizer.scale_obs(obs)
+        goal = self.normalizer.scale_goal(data["goal"])
 
         out = {"obs": obs, "goal": goal, "returns": returns}
-        if input is not None:
-            out["input"] = input
-        if action is not None:
-            out["action"] = action
+        if traj is not None:
+            out["traj"] = traj
         return out
 
     def dict_to_device(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         return {k: v.to(self.device) for k, v in data.items()}
 
     def inpaint(self, x: Tensor, data: dict[str, Tensor]) -> Tensor:
-        x[:, 0, self.action_dim :] = data["obs"]
-        x[:, -1, self.action_dim + 18 :] = data["goal"]
+        x[:, 0] = data["obs"]
+        x[:, -1, 18:] = data["goal"]
         return x
 
     def get_model_states(self, x):

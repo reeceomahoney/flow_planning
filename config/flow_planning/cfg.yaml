@@ -21,7 +21,6 @@ save_interval: ${experiment.save_interval}
 device: cuda
 ema_decay: 0.995
 use_ema: True
-scaling: linear
 
 #dims
 obs_dim: null

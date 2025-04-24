@@ -14,5 +14,4 @@
 - [x] Batch classifier training
 - [x] Simplify classifier runner
 - [x] Fix jit tracing
-- [ ] simplify normalizer
-- [ ] Swap obs and actions
+- [x] simplify normalizer
