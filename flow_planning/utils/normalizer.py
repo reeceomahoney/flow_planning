@@ -13,11 +13,11 @@ class Normalizer(nn.Module):
         self.register_buffer("r_max", dl.r_max)
         self.register_buffer("r_min", dl.r_min)
 
-        # bounds
-        y_bounds = torch.zeros((2, self.y_mean.shape[-1]))
-        self.register_buffer("y_bounds", y_bounds)
-        self.y_bounds[0, :] = -1 - 1e-4
-        self.y_bounds[1, :] = 1 + 1e-4
+        # limits
+        limits = torch.zeros((2, self.obs_max.shape[-1]))
+        self.register_buffer("limits", limits)
+        self.limits[0, :] = -1 - 1e-4
+        self.limits[1, :] = 1 + 1e-4
 
         self.to(device)
 
@@ -36,4 +36,4 @@ class Normalizer(nn.Module):
         return (x + 1) * (self.obs_max - self.obs_min) / 2 + self.obs_min
 
     def clip(self, y):
-        return torch.clamp(y, self.y_bounds[0, :], self.y_bounds[1, :])
+        return torch.clamp(y, self.limits[0, :], self.limits[1, :])

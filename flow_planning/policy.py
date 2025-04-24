@@ -109,7 +109,7 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         # calculate loss
-        traj = self.normalizer.inverse_scale_output(data["traj"])
+        traj = self.normalizer.inverse_scale_obs(data["traj"])
         return F.mse_loss(x, traj).item()
 
     #####################
@@ -162,7 +162,7 @@ class Policy(nn.Module):
 
         # denormalize
         x = self.normalizer.clip(x)
-        return self.normalizer.inverse_scale_output(x)
+        return self.normalizer.inverse_scale_obs(x)
 
     def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
         grad = torch.zeros_like(x)
@@ -230,7 +230,7 @@ class Policy(nn.Module):
         # plot trajectories
         for i in range(len(guide_scales)):
             self.guide_scale = guide_scales[i].item()
-            traj = self.act({"obs": obs, "goal": goal})["obs_traj"]
+            traj = self.act({"obs": obs, "goal": goal})["traj"]
             traj_, obs_ = traj[..., 18:21], obs[:, 18:21]
             label = f"Scale: {guide_scales[i]}" if len(guide_scales) > 1 else None
             self._draw_trajectory(ax, traj_, obs_, goal, color=colors[i], label=label)
