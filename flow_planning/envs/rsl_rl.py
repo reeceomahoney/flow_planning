@@ -56,22 +56,16 @@ class ObservationsCfg:
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
 
-        # observation terms (order preserved)
         joint_pos = ObsTerm(
-            func=mdp.joint_pos, noise=Unoise(n_min=-0.01, n_max=0.01)
+            func=mdp.joint_pos,
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names="panda_joint.*")},
         )
         joint_vel = ObsTerm(
-            func=mdp.joint_vel, noise=Unoise(n_min=-0.01, n_max=0.01)
-        )
-        ee_pose = ObsTerm(
-            func=mdp.ee_pose,
+            func=mdp.joint_vel,
             noise=Unoise(n_min=-0.01, n_max=0.01),
-            params={"asset_cfg": SceneEntityCfg("robot", body_names="panda_hand")},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names="panda_joint.*")},
         )
-        pose_command = ObsTerm(
-            func=mdp.generated_commands, params={"command_name": "ee_pose"}
-        )
-        actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
             self.enable_corruption = True

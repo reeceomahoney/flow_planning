@@ -2,7 +2,6 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets.rigid_object import RigidObjectCfg
 from isaaclab.managers.manager_term_cfg import EventTermCfg
 from isaaclab.utils import configclass
-from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG
 
 from . import mdp
 from .rsl_rl import T_MAX, FrankaRLEnvCfg
@@ -12,12 +11,6 @@ from .rsl_rl import T_MAX, FrankaRLEnvCfg
 class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-        FRANKA_PANDA_CFG.actuators["panda_shoulder"].stiffness = 0.0
-        FRANKA_PANDA_CFG.actuators["panda_shoulder"].damping = 0.0
-        FRANKA_PANDA_CFG.actuators["panda_forearm"].stiffness = 0.0
-        FRANKA_PANDA_CFG.actuators["panda_forearm"].damping = 0.0
-        self.scene.robot = FRANKA_PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
-        self.observations.policy.pose_command = None  # type: ignore
         self.curriculum = None  # type: ignore
         self.events.reset_robot_joints = EventTermCfg(
             func=mdp.reset_joints_fixed, mode="reset"
@@ -30,9 +23,10 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
             debug_vis=True,
             fixed_commands=[(0.5, 0.3, 0.2)],
         )
-        self.actions.arm_action = mdp.JointEffortActionCfg(
+        self.actions.arm_action = mdp.JointPositionActionCfg(
             asset_name="robot",
             joint_names=["panda_joint.*"],
+            use_default_offset=False,
         )
 
 
