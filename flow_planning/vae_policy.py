@@ -27,8 +27,6 @@ class VAEPolicy(Policy):
         geco_alpha: float = 0.99,
         beta_init: float = 1.0,
     ):
-        self.use_geco = use_geco
-        self.beta = beta_init
         super().__init__(
             model,
             normalizer,
@@ -43,13 +41,16 @@ class VAEPolicy(Policy):
             device,
         )
 
-        if self.use_geco:
+        if use_geco:
             self.geco = GECO(
                 goal=geco_goal,
                 step_size=geco_step_size,
                 alpha=geco_alpha,
                 beta_init=beta_init,
             )
+        self.use_geco = use_geco
+        self.beta = beta_init
+        self.first_state = True
 
     def update(self, data):
         data = self.process(data)
@@ -58,7 +59,9 @@ class VAEPolicy(Policy):
         # Forward pass through VAE
         x_recon, mu, logvar = self.model(x)
         # Compute individual loss components
-        _, recon_loss, kl_loss = self.model.compute_loss(x, x_recon, mu, logvar, beta=1.0)
+        _, recon_loss, kl_loss = self.model.compute_loss(
+            x, x_recon, mu, logvar, beta=1.0
+        )
 
         # Update beta using GECO if enabled
         if self.use_geco:
@@ -103,13 +106,33 @@ class VAEPolicy(Policy):
 
         return F.mse_loss(x_recon_orig, x_orig).item()
 
-    def forward(self, data: dict[str, Tensor]) -> torch.Tensor:
-        bsz = data["obs"].shape[0]
+    def reset(self):
+        self.first_state = True
 
-        # Sample from prior
-        x = self.model.sample(bsz).expand(bsz, self.T, -1)
+    @torch.enable_grad()
+    def forward(self, data: dict[str, Tensor]) -> torch.Tensor:
+        if self.first_state:
+            mu, logvar = self.model.encode(data["obs"])
+            self.z = self.model.reparameterize(mu, logvar).detach()
+            self.z_dist = torch.distributions.Normal(
+                mu.detach(), (0.5 * logvar.detach()).exp()
+            )
+            self.z.requires_grad_(True)
+
+            self.z_optimizer = torch.optim.Adam([self.z], lr=0.01)
+            self.first_state = False
+
+        x_hat = self.model.decode(self.z)
+        prior_loss = -self.z_dist.log_prob(self.z).sum()
+        loss = torch.norm(x_hat - data["goal"]) + prior_loss
+        print(f"loss: {loss.item()}")
+
+        self.z_optimizer.zero_grad()
+        loss.backward()
+        self.z_optimizer.step()
 
         # Convert to original scale
+        x = self.model.decode(self.z)
         x = self.normalizer.clip(x)
         return self.normalizer.inverse_scale_obs(x)
 
