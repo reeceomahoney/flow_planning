@@ -1,6 +1,7 @@
 import random
 
 import matplotlib.pyplot as plt
+import pytorch_kinematics as pk
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,6 +10,7 @@ from torch import Tensor
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
+import isaaclab.utils.math as math_utils
 from flow_planning.envs import ParticleEnv
 from flow_planning.models.classifier import ClassifierMLP
 from flow_planning.models.unet import ConditionalUnet1D
@@ -52,6 +54,10 @@ class Policy(nn.Module):
         self.guide_scale = 0.0
         self.use_refinement = False
 
+        self.urdf_chain = pk.build_serial_chain_from_urdf(
+            open("data/franka_panda/panda.urdf", mode="rb").read(), "panda_hand"
+        ).to(device=env.device)
+
         self._create_model(model, lr, num_iters)
         self.to(device)
 
@@ -66,7 +72,6 @@ class Policy(nn.Module):
 
     @torch.no_grad()
     def act(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
-        data["obs"] = self.get_model_states(data["obs"])
         data = self.process(data)
         x = self.forward(data)
         return {"action": x[..., :7], "traj": x}
@@ -164,10 +169,26 @@ class Policy(nn.Module):
         x = self.normalizer.clip(x)
         return self.normalizer.inverse_scale_obs(x)
 
+    @torch.enable_grad()
     def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
-        grad = torch.zeros_like(x)
-        grad[..., 20] = 1
-        return grad
+        # collision
+        x = x.detach().clone().requires_grad_(True)
+        pts = torch.tensor([0.5, 0, 0.2]).to(self.device).expand(x.shape[0], 3)
+        th = self.urdf_chain.forward_kinematics(x[0, :, :7], end_only=False)
+        matrices = {k: v.get_matrix() for k, v in th.items()}
+        pos = {k: v[:, :3, 3] for k, v in matrices.items()}
+        pos = torch.stack(list(pos.values()), dim=1)
+        dists = torch.norm(pos - pts, dim=-1)
+        collision_grad = torch.autograd.grad([dists.sum()], [x], create_graph=True)[0]
+        collision_grad.detach_()
+
+        # smoothness
+        x = x.detach().clone().requires_grad_(True)
+        cost = self.gp(x)
+        smooth_grad = torch.autograd.grad([cost.sum()], [x], create_graph=True)[0]
+        smooth_grad.detach_()
+
+        return collision_grad - 1e-5 * smooth_grad
 
     ###################
     # Data processing #
@@ -201,11 +222,8 @@ class Policy(nn.Module):
 
     def inpaint(self, x: Tensor, data: dict[str, Tensor]) -> Tensor:
         x[:, 0] = data["obs"]
-        x[:, -1, 18:] = data["goal"]
+        x[:, -1] = data["goal"]
         return x
-
-    def get_model_states(self, x):
-        return x[:, :27] if self.isaac_env else x
 
     #################
     # Visualization #
@@ -231,9 +249,25 @@ class Policy(nn.Module):
         for i in range(len(guide_scales)):
             self.guide_scale = guide_scales[i].item()
             traj = self.act({"obs": obs, "goal": goal})["traj"]
-            traj_, obs_ = traj[..., 18:21], obs[:, 18:21]
+
+            # fk to get hand pose
+            th = self.urdf_chain.forward_kinematics(traj[0, :, :7])
+            m = th.get_matrix()
+            pos = m[:, :3, 3]
+            rot = pk.matrix_to_quaternion(m[:, :3, :3])
+
+            # get end effector position
+            pos_offset = torch.tensor([[0, 0, 0.107]]).to(self.device)
+            rot_offset = torch.tensor([[1, 0, 0, 0]]).to(self.device)
+            ee_pos, _ = math_utils.combine_frame_transforms(
+                pos, rot, pos_offset, rot_offset
+            )
+
+            ee_goal = torch.tensor([0.5, 0.3, 0.2])
             label = f"Scale: {guide_scales[i]}" if len(guide_scales) > 1 else None
-            self._draw_trajectory(ax, traj_, obs_, goal, color=colors[i], label=label)
+            self._draw_trajectory(
+                ax, ee_pos, ee_pos[0], ee_goal, color=colors[i], label=label
+            )
         self.guide_scale = 0
 
         # format plot
@@ -262,7 +296,7 @@ class Policy(nn.Module):
             plt.show()
 
     def _draw_trajectory(self, ax, traj, obs, goal, color=None, label=None):
-        traj, obs, goal = traj[0].cpu(), obs[0].cpu(), goal[0].cpu()
+        traj, obs, goal = traj.cpu(), obs.cpu(), goal.cpu()
         marker_params = {
             "markersize": 35,
             "markerfacecolor": "white",

@@ -21,6 +21,7 @@ dependencies = [
   "diffusers>=0.32.2",
   "pin>=2.7.0",
   "example-robot-data>=4.3.0",
+  "pytorch-kinematics>=0.7.5",
 ]
 
 [build-system]

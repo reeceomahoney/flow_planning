@@ -46,7 +46,7 @@ def create_env(env_name, agent_cfg):
             # create isaac environment
             env = gym.make(env_name, cfg=env_cfg, render_mode=None)
             env = RslRlVecEnvWrapper(env)  # type: ignore
-            agent_cfg.obs_dim = 27
+            agent_cfg.obs_dim = env.num_obs
             agent_cfg.act_dim = 0
 
     return env, agent_cfg, env_cfg
@@ -54,16 +54,16 @@ def create_env(env_name, agent_cfg):
 
 def get_goal(env):
     if isinstance(env, RslRlVecEnvWrapper):
-        goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
-        rot_mat = matrix_from_quat(goal[:, 3:])
-        ortho6d = rot_mat[..., :2].reshape(-1, 6)
-        goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
+        # goal = env.unwrapped.command_manager.get_command("ee_pose")  # type: ignore
+        # rot_mat = matrix_from_quat(goal[:, 3:])
+        # ortho6d = rot_mat[..., :2].reshape(-1, 6)
+        # goal = torch.cat([goal[:, :3], ortho6d], dim=-1)
 
-        # joint pos for (0.7, 0, 0.2)
-        # joint_pos = torch.tensor([-0.0047,  1.2643,  0.0155,  1.2299, -0.0251, -0.8011,  0.0421, -0.0314, -0.0399])  # fmt: off
-        # joint_pos = joint_pos.expand(env.num_envs, -1).to(env.device)
-        # joint_vel = torch.zeros_like(joint_pos)
-        # goal = torch.cat([joint_pos, joint_vel, goal[:, :3], ortho6d], dim=-1)
+        # (0.5, 0.3, 0.2)
+        joint_pos = torch.tensor([1.2836e-01, 2.8420e-01, 4.3287e-01, -2.0772e00, -1.6051e-01, 2.3218e00, 1.4306e00])  # fmt: off
+        joint_pos = joint_pos.expand(env.num_envs, -1).to(env.device)
+        joint_vel = torch.zeros_like(joint_pos)
+        goal = torch.cat([joint_pos, joint_vel], dim=-1)
     else:
         goal = env.goal
         goal = torch.tensor([0, 1, 0.6, -0.6])
