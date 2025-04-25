@@ -131,23 +131,23 @@ def main(agent_cfg: DictConfig):
         exit()
 
     # create trajectory visualizer
-    if env_name.startswith("Isaac"):
-        trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
+    # if env_name.startswith("Isaac"):
+    #     trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     obs, _ = env.get_observations()
     start = time.time()
     while simulation_app.is_running():
         goal = get_goal(env)
         output = policy.act({"obs": obs, "goal": goal})
-
         action = output["action"]
-        action[0, -4:, :] = action[0, -5:-4, :]
-        for i in range(policy.action_dim):
-            smoothed = savgol_filter(action[0, :, i].cpu(), window_length=51, polyorder=2)
-            action[0, :, i] = torch.tensor(smoothed).to(action.device)
 
-        if env_name.startswith("Isaac"):
-            trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
+        # action[0, -4:, :] = action[0, -5:-4, :]
+        # for i in range(policy.action_dim):
+        #     smoothed = savgol_filter(action[0, :, i].cpu(), window_length=51, polyorder=2)
+        #     action[0, :, i] = torch.tensor(smoothed).to(action.device)
+
+        # if env_name.startswith("Isaac"):
+        #     trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
 
         # env stepping
         for i in range(runner.policy.T_action):

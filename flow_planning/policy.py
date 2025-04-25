@@ -139,9 +139,8 @@ class Policy(nn.Module):
             # guidance
             if self.guide_scale > 0:
                 grad = self._guide_fn(x, timesteps[i + 1], data)
-                dt = timesteps[i + 1] - timesteps[i]
                 weight = self.guide_scale * (1 - timesteps[i + 1])
-                x += weight * dt * grad
+                x += weight * grad
 
         x = self.inpaint(x, data)
 
@@ -189,7 +188,7 @@ class Policy(nn.Module):
         smooth_grad = torch.autograd.grad([cost.sum()], [x], create_graph=True)[0]
         smooth_grad.detach_()
 
-        return collision_grad - 1e-5 * smooth_grad
+        return 0.2 * collision_grad - 1e-6 * smooth_grad
 
     ###################
     # Data processing #
@@ -236,7 +235,7 @@ class Policy(nn.Module):
         obs, _ = self.env.get_observations()
         goal = get_goal(self.env)
         # create figure
-        guide_scales = torch.tensor([0, 1, 2, 3, 4])
+        guide_scales = torch.tensor([0, 1, 1.2, 1.4, 1.6])
         # projection = "3d" if self.isaac_env else None
         projection = None
         plt.rcParams.update({"font.size": 24})
@@ -266,7 +265,7 @@ class Policy(nn.Module):
             )
 
             ee_goal = torch.tensor([0.5, 0.3, 0.2])
-            label = f"Scale: {guide_scales[i]}" if len(guide_scales) > 1 else None
+            label = f"Scale: {guide_scales[i]:.1f}" if len(guide_scales) > 1 else None
             self._draw_trajectory(
                 ax, ee_pos, ee_pos[0], ee_goal, color=colors[i], label=label
             )
