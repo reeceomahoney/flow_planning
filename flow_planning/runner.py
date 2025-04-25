@@ -80,7 +80,7 @@ class Runner:
     def _create_policy(self):
         model = hydra.utils.instantiate(self.cfg.model)
         normalizer = Normalizer(self.train_loader, self.device)
-        if self.cfg.experiement.wandb_project == "vae":
+        if self.cfg.experiment.wandb_project == "vae":
             self.policy = VAEPolicy(model, normalizer, self.env, **self.cfg.policy)
         else:
             self.policy = Policy(model, normalizer, self.env, **self.cfg.policy)

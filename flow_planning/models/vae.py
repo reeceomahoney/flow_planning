@@ -30,7 +30,7 @@ class GECO:
         self.ema_error = self.alpha * self.ema_error + (1 - self.alpha) * recon_error
 
         # Compute constraint value: C(x) - goal
-        constraint = self.ema_error - self.goal
+        constraint = self.goal - self.ema_error
 
         # Update beta using gradient ascent on the Lagrangian
         self.beta = self.beta * torch.exp(self.step_size * constraint)
@@ -68,7 +68,7 @@ class VAE(nn.Module):
         )
 
     def encode(self, x):
-        h = self.encoder(x.reshape(x.size(0), -1))
+        h = self.encoder(x)
         mu = self.fc_mu(h)
         logvar = self.fc_logvar(h)
         return mu, logvar
@@ -80,8 +80,7 @@ class VAE(nn.Module):
         return z
 
     def decode(self, z):
-        output = self.decoder(z)
-        return output.view(-1, self.T, self.input_dim)
+        return self.decoder(z)
 
     def forward(self, x, return_latent=False):
         mu, logvar = self.encode(x)
@@ -97,7 +96,7 @@ class VAE(nn.Module):
         return self.decode(z)
 
     def compute_loss(self, x, x_recon, mu, logvar, beta=1.0):
-        batch_size = x.shape[0]
+        batch_size = x.shape[0] * x.shape[1]
         # Reconstruction loss
         recon_loss = F.mse_loss(x_recon, x, reduction="sum") / batch_size
         # KL divergence

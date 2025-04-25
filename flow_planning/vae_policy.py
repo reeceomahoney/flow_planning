@@ -56,9 +56,9 @@ class VAEPolicy(Policy):
         x = data["traj"]
 
         # Forward pass through VAE
-        x_recon, mu, logvar = self.vae(x)
+        x_recon, mu, logvar = self.model(x)
         # Compute individual loss components
-        _, recon_loss, kl_loss = self.vae.compute_loss(x, x_recon, mu, logvar, beta=1.0)
+        _, recon_loss, kl_loss = self.model.compute_loss(x, x_recon, mu, logvar, beta=1.0)
 
         # Update beta using GECO if enabled
         if self.use_geco:
@@ -94,8 +94,8 @@ class VAEPolicy(Policy):
         x = data["traj"]
 
         # Forward pass (without sampling noise) for testing
-        mu, logvar = self.vae.encode(x)
-        x_recon = self.vae.decode(mu)
+        mu, logvar = self.model.encode(x)
+        x_recon = self.model.decode(mu)
 
         # Convert to original scale for error calculation
         x_orig = self.normalizer.inverse_scale_obs(x)
@@ -107,7 +107,7 @@ class VAEPolicy(Policy):
         bsz = data["obs"].shape[0]
 
         # Sample from prior
-        x = self.vae.sample(bsz)
+        x = self.model.sample(bsz).expand(bsz, self.T, -1)
 
         # Convert to original scale
         x = self.normalizer.clip(x)
@@ -121,7 +121,7 @@ class VAEPolicy(Policy):
             smooth_cost = self.gp(x)
             return smooth_cost
 
-        x, _ = self.vae.latent_optimization(
+        x, _ = self.model.latent_optimization(
             cost_fn=cost_fn,
             n_steps=n_steps,
             batch_size=bsz,
