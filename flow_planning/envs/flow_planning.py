@@ -13,7 +13,9 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         FRANKA_PANDA_HIGH_PD_CFG.spawn.rigid_props.disable_gravity = False  # type: ignore
-        self.scene.robot = FRANKA_PANDA_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
+        self.scene.robot = FRANKA_PANDA_HIGH_PD_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )  # type: ignore
         self.curriculum = None  # type: ignore
         self.events.reset_robot_joints = EventTermCfg(
             func=mdp.reset_joints_fixed, mode="reset"
@@ -31,16 +33,14 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
             joint_names=["panda_joint.*"],
             use_default_offset=False,
         )
-
-
-@configclass
-class FrankaGuidanceEnvCfg(FrankaFlowPlanningEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
         self.scene.obstacle = RigidObjectCfg(  # type: ignore
             prim_path="{ENV_REGEX_NS}/Obstacle",
-            spawn=sim_utils.CuboidCfg(
-                size=(0.05, 0.8, 0.6),
+            spawn=sim_utils.SphereCfg(
+                radius=0.1,
+                visual_material=sim_utils.PreviewSurfaceCfg(
+                    diffuse_color=(1.0, 0.0, 0.0),
+                    roughness=0.1,
+                ),
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(
                     disable_gravity=True,
                     retain_accelerations=False,
@@ -55,5 +55,5 @@ class FrankaGuidanceEnvCfg(FrankaFlowPlanningEnvCfg):
                     collision_enabled=False
                 ),
             ),
-            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.5, 0, 0.3)),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.5, 0, 0.2)),
         )

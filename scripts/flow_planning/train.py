@@ -45,8 +45,6 @@ def main(agent_cfg: DictConfig):
     # create environment
     env_name = agent_cfg.env.env_name
     experiment = agent_cfg.experiment.wandb_project
-    if experiment == "classifier":
-        agent_cfg.env.env_name = "Isaac-Franka-Guidance"
     env, agent_cfg, env_cfg = create_env(env_name, agent_cfg)
 
     # create runner

@@ -20,6 +20,7 @@ from flow_planning.utils import (
     get_dataloaders,
     get_goal,
 )
+from flow_planning.vae_policy import VAEPolicy
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 # A logger for this file
@@ -79,7 +80,10 @@ class Runner:
     def _create_policy(self):
         model = hydra.utils.instantiate(self.cfg.model)
         normalizer = Normalizer(self.train_loader, self.device)
-        self.policy = Policy(model, normalizer, self.env, **self.cfg.policy)
+        if self.cfg.experiment.wandb_project == "vae":
+            self.policy = VAEPolicy(model, normalizer, self.env, **self.cfg.policy)
+        else:
+            self.policy = Policy(model, normalizer, self.env, **self.cfg.policy)
 
     def _set_simulate(self):
         return True
@@ -124,6 +128,8 @@ class Runner:
 
                             if t == self.num_steps_per_env - 1:
                                 dones = torch.ones_like(dones)
+                            if dones.any():
+                                self.policy.reset()
 
                             # move device
                             obs, rewards, dones = (
@@ -169,7 +175,17 @@ class Runner:
                 generator = iter(self.train_loader)
                 batch = next(generator)
 
-            loss = self.policy.update(batch)
+            loss_info = self.policy.update(batch)
+
+            if isinstance(loss_info, dict):
+                loss = loss_info["loss"]
+                if self.log_dir is not None and it % self.cfg.log_interval == 0:
+                    for key, value in loss_info.items():
+                        if key != "loss":
+                            wandb.log({f"VAE/{key}": value}, step=it)
+            else:
+                loss = loss_info
+
             self.ema_helper.update(self.policy.parameters())
 
             # logging
@@ -249,7 +265,9 @@ class Runner:
             self.ema_helper.restore(self.policy.parameters())
 
     def load(self, path):
-        torch.serialization.add_safe_globals([Policy, ClassifierPolicy, Normalizer])
+        torch.serialization.add_safe_globals(
+            [Policy, ClassifierPolicy, VAEPolicy, Normalizer]
+        )
         loaded_dict = torch.load(path, map_location=self.device, weights_only=True)
         self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
         self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])

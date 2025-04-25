@@ -101,13 +101,14 @@ def main(agent_cfg: DictConfig):
     agent_cfg.num_envs = 1
     env_name = agent_cfg.env.env_name
     experiment = agent_cfg.experiment.wandb_project
-    if experiment == "classifier":
-        agent_cfg.env.env_name = "Isaac-Franka-Guidance"
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
 
     if experiment == "classifier":
         runner = ClassifierRunner(env, agent_cfg, device=agent_cfg.device)
         log_root_path = os.path.abspath("logs/classifier")
+    elif experiment == "vae":
+        runner = Runner(env, agent_cfg, device=agent_cfg.device)
+        log_root_path = os.path.abspath("logs/vae")
     else:
         runner = Runner(env, agent_cfg, device=agent_cfg.device)
         log_root_path = os.path.abspath("logs/flow_planning")
@@ -151,7 +152,10 @@ def main(agent_cfg: DictConfig):
 
         # env stepping
         for i in range(runner.policy.T_action):
-            obs = env.step(action[:, i])[0]
+            obs, _, dones, _ = env.step(action[:, i])
+
+            if dones.any():
+                policy.reset()
 
             end = time.time()
             if end - start < 1 / 30:
