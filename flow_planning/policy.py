@@ -77,7 +77,7 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         return {"action": x[..., :7], "traj": x}
-    
+
     def reset(self):
         pass
 
@@ -192,7 +192,7 @@ class Policy(nn.Module):
         smooth_grad = torch.autograd.grad([cost.sum()], [x], create_graph=True)[0]
         smooth_grad.detach_()
 
-        return 0.2 * collision_grad - 1e-6 * smooth_grad
+        return 0.2 * collision_grad  # - 1e-6 * smooth_grad
 
     ###################
     # Data processing #
@@ -230,6 +230,21 @@ class Policy(nn.Module):
         x[:, -1] = data["goal"]
         return x
 
+    def compute_ee_pos(self, x: Tensor) -> Tensor:
+        # fk to get hand pose
+        th = self.urdf_chain.forward_kinematics(x[0, :, :7])
+        m = th.get_matrix()
+        pos = m[:, :3, 3]
+        rot = pk.matrix_to_quaternion(m[:, :3, :3])
+
+        # get end effector position
+        pos_offset = torch.tensor([[0, 0, 0.107]]).expand(pos.shape[0], 3)
+        rot_offset = torch.tensor([[1, 0, 0, 0]]).expand(rot.shape[0], 4)
+        ee_pos, _ = math_utils.combine_frame_transforms(
+            pos, rot, pos_offset.to(self.device), rot_offset.to(self.device)
+        )
+        return ee_pos
+
     #################
     # Visualization #
     #################
@@ -254,20 +269,7 @@ class Policy(nn.Module):
         for i in range(len(guide_scales)):
             self.guide_scale = guide_scales[i].item()
             traj = self.act({"obs": obs, "goal": goal})["traj"]
-
-            # fk to get hand pose
-            th = self.urdf_chain.forward_kinematics(traj[0, :, :7])
-            m = th.get_matrix()
-            pos = m[:, :3, 3]
-            rot = pk.matrix_to_quaternion(m[:, :3, :3])
-
-            # get end effector position
-            pos_offset = torch.tensor([[0, 0, 0.107]]).expand(pos.shape[0], 3)
-            rot_offset = torch.tensor([[1, 0, 0, 0]]).expand(rot.shape[0], 4)
-            ee_pos, _ = math_utils.combine_frame_transforms(
-                pos, rot, pos_offset.to(self.device), rot_offset.to(self.device)
-            )
-
+            ee_pos = self.compute_ee_pos(traj)
             ee_goal = torch.tensor([0.5, 0.3, 0.2])
             label = f"Scale: {guide_scales[i]:.1f}" if len(guide_scales) > 1 else None
             self._draw_trajectory(

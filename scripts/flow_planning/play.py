@@ -76,10 +76,10 @@ def create_trajectory_visualizer(agent_cfg):
             f"cuboid_{i}": sim_utils.SphereCfg(
                 radius=0.02,
                 visual_material=sim_utils.PreviewSurfaceCfg(
-                    diffuse_color=interpolate_color(i / (agent_cfg.env.T - 1))
+                    diffuse_color=interpolate_color(i / (agent_cfg.policy.T - 1))
                 ),
             )
-            for i in range(agent_cfg.env.T)
+            for i in range(agent_cfg.policy.T)
         },
     )
     trajectory_visualizer = VisualizationMarkers(trajectory_visualizer_cfg)
@@ -102,6 +102,7 @@ def main(agent_cfg: DictConfig):
     env_name = agent_cfg.env.env_name
     experiment = agent_cfg.experiment.wandb_project
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
+    env.unwrapped.sim.set_camera_view([3.0, 0.0, 0.2], [0.0, 0.0, 0.2])
 
     if experiment == "classifier":
         runner = ClassifierRunner(env, agent_cfg, device=agent_cfg.device)
@@ -117,7 +118,7 @@ def main(agent_cfg: DictConfig):
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
     policy = runner.policy
-    policy.guide_scale = 0
+    policy.guide_scale = 1.5
 
     if args_cli.export:
         export_policy_as_jit(policy, ".")
@@ -132,27 +133,30 @@ def main(agent_cfg: DictConfig):
         exit()
 
     # create trajectory visualizer
-    # if env_name.startswith("Isaac"):
-    #     trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
+    if env_name.startswith("Isaac"):
+        trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     obs, _ = env.get_observations()
     start = time.time()
     while simulation_app.is_running():
         goal = get_goal(env)
         output = policy.act({"obs": obs, "goal": goal})
+
+        # visualize ee trajectory
+        if env_name.startswith("Isaac"):
+            ee_pos = policy.compute_ee_pos(output["traj"])
+            trajectory_visualizer.visualize(ee_pos)
+
+        # smooth actions
         action = output["action"]
-
-        # action[0, -4:, :] = action[0, -5:-4, :]
-        # for i in range(policy.action_dim):
-        #     smoothed = savgol_filter(action[0, :, i].cpu(), window_length=51, polyorder=2)
-        #     action[0, :, i] = torch.tensor(smoothed).to(action.device)
-
-        # if env_name.startswith("Isaac"):
-        #     trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
+        for i in range(action.shape[2]):
+            smoothed = savgol_filter(action[0, :, i].cpu(), window_length=63, polyorder=2)
+            action[0, :, i] = torch.tensor(smoothed).to(action.device)
 
         # env stepping
         for i in range(runner.policy.T_action):
-            obs, _, dones, _ = env.step(action[:, i])
+            for _ in range(2):
+                obs, _, dones, _ = env.step(action[:, i])
 
             if dones.any():
                 policy.reset()

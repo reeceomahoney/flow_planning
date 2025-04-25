@@ -25,7 +25,7 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
             asset_name="robot",
             body_name="panda_hand",
             resampling_time_range=(T_MAX, T_MAX),
-            debug_vis=True,
+            debug_vis=False,
             fixed_commands=[(0.5, 0.3, 0.2)],
         )
         self.actions.arm_action = mdp.JointPositionActionCfg(
