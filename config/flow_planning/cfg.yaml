@@ -2,8 +2,8 @@
 
 defaults:
   - env: franka
-  - experiment: vae
-  - model: vae
+  - experiment: flow_planning
+  - model: unet
   - _self_
 
 hydra:

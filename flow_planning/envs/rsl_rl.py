@@ -151,4 +151,4 @@ class FrankaRLEnvCfg(ReachEnvCfg):
         )
 
         # general settings
-        self.episode_length_s = 2 * T_MAX
+        self.episode_length_s = T_MAX

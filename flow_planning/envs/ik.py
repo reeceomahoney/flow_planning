@@ -3,7 +3,7 @@ from isaaclab.controllers import OperationalSpaceControllerCfg
 from isaaclab.utils import configclass
 from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG
 
-from .rsl_rl import FrankaRLEnvCfg
+from .rsl_rl import T_MAX, FrankaRLEnvCfg
 
 
 @configclass
@@ -35,3 +35,4 @@ class FrankaIKEnvCfg(FrankaRLEnvCfg):
             nullspace_joint_pos_target="default",
             body_offset=CustomOscActionCfg.OffsetCfg(pos=(0.0, 0.0, 0.107)),
         )
+        self.episode_length_s = 2 * T_MAX

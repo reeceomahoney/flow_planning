@@ -77,6 +77,9 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         return {"action": x[..., :7], "traj": x}
+    
+    def reset(self):
+        pass
 
     def update(self, data):
         data = self.process(data)
