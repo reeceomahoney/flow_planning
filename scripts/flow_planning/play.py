@@ -101,13 +101,14 @@ def main(agent_cfg: DictConfig):
     agent_cfg.num_envs = 1
     env_name = agent_cfg.env.env_name
     experiment = agent_cfg.experiment.wandb_project
-    if experiment == "classifier":
-        agent_cfg.env.env_name = "Isaac-Franka-Guidance"
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
 
     if experiment == "classifier":
         runner = ClassifierRunner(env, agent_cfg, device=agent_cfg.device)
         log_root_path = os.path.abspath("logs/classifier")
+    elif experiment == "vae":
+        runner = Runner(env, agent_cfg, device=agent_cfg.device)
+        log_root_path = os.path.abspath("logs/vae")
     else:
         runner = Runner(env, agent_cfg, device=agent_cfg.device)
         log_root_path = os.path.abspath("logs/flow_planning")
@@ -131,27 +132,30 @@ def main(agent_cfg: DictConfig):
         exit()
 
     # create trajectory visualizer
-    if env_name.startswith("Isaac"):
-        trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
+    # if env_name.startswith("Isaac"):
+    #     trajectory_visualizer = create_trajectory_visualizer(agent_cfg)
 
     obs, _ = env.get_observations()
     start = time.time()
     while simulation_app.is_running():
         goal = get_goal(env)
         output = policy.act({"obs": obs, "goal": goal})
-
         action = output["action"]
-        action[0, -4:, :] = action[0, -5:-4, :]
-        for i in range(policy.action_dim):
-            smoothed = savgol_filter(action[0, :, i].cpu(), window_length=51, polyorder=2)
-            action[0, :, i] = torch.tensor(smoothed).to(action.device)
 
-        if env_name.startswith("Isaac"):
-            trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
+        # action[0, -4:, :] = action[0, -5:-4, :]
+        # for i in range(policy.action_dim):
+        #     smoothed = savgol_filter(action[0, :, i].cpu(), window_length=51, polyorder=2)
+        #     action[0, :, i] = torch.tensor(smoothed).to(action.device)
+
+        # if env_name.startswith("Isaac"):
+        #     trajectory_visualizer.visualize(output["obs_traj"][0, :, 18:21])
 
         # env stepping
         for i in range(runner.policy.T_action):
-            obs = env.step(action[:, i])[0]
+            obs, _, dones, _ = env.step(action[:, i])
+
+            if dones.any():
+                policy.reset()
 
             end = time.time()
             if end - start < 1 / 30:
