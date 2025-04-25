@@ -1,3 +1,5 @@
+# when using vae, set both env and experiment options
+
 defaults:
   - env: franka
   - experiment: vae
@@ -33,8 +35,8 @@ sampling_steps: 10
 policy:
   obs_dim: ${obs_dim}
   act_dim: ${act_dim}
-  T: ${env.T}
-  T_action: ${env.T_action}
+  T: ${experiment.T}
+  T_action: ${experiment.T_action}
   sampling_steps: ${sampling_steps}
   lr: 2e-4
   num_iters: ${num_iters}
@@ -42,8 +44,8 @@ policy:
 
 dataset:
   env_name: ${env.env_name}
-  T: ${env.T}
+  T: ${experiment.T}
   train_fraction: 0.99
-  train_batch_size: 1024
-  test_batch_size: 1024
+  train_batch_size: ${experiment.batch_size}
+  test_batch_size: ${experiment.batch_size}
   num_workers: 4
