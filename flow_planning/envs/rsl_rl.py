@@ -1,10 +1,13 @@
 import math
 
+import isaaclab.sim as sim_utils
+from isaaclab.assets import AssetBaseCfg
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers.manager_term_cfg import EventTermCfg
 from isaaclab.utils import configclass
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG
 from isaaclab_tasks.manager_based.manipulation.reach.reach_env_cfg import (
@@ -118,6 +121,12 @@ class FrankaRLEnvCfg(ReachEnvCfg):
 
         # switch robot to franka
         self.scene.robot = FRANKA_PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
+        self.scene.table = AssetBaseCfg(
+            prim_path="{ENV_REGEX_NS}/Table",
+            spawn=sim_utils.UsdFileCfg(
+                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/ThorlabsTable/table_instanceable.usd",
+            ),
+        )
         # override rewards
         self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = [
             "panda_hand"
