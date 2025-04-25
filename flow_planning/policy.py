@@ -14,6 +14,7 @@ import isaaclab.utils.math as math_utils
 from flow_planning.envs import ParticleEnv
 from flow_planning.models.classifier import ClassifierMLP
 from flow_planning.models.unet import ConditionalUnet1D
+from flow_planning.models.vae import VAE
 from flow_planning.utils import CostGPTrajectory, Normalizer, calculate_return, get_goal
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
@@ -25,7 +26,7 @@ def expand_t(tensor: Tensor, bsz: int) -> Tensor:
 class Policy(nn.Module):
     def __init__(
         self,
-        model: ConditionalUnet1D,
+        model: ConditionalUnet1D | VAE,
         normalizer: Normalizer,
         env: RslRlVecEnvWrapper | ParticleEnv,
         obs_dim: int,

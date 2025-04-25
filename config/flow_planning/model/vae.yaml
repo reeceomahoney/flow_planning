@@ -1,0 +1,5 @@
+_target_: flow_planning.models.vae.VAE
+input_dim: ${obs_dim}
+latent_dim: 32
+hidden_dim: 256
+device: ${device}

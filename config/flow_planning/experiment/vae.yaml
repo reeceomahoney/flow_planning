@@ -1,0 +1,3 @@
+wandb_project: vae
+run_dir: logs/vae/${now:%b-%d}/${now:%H-%M-%S}
+save_interval: 1e4
