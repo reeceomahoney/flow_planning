@@ -94,7 +94,7 @@ class FlowPlanningDataset(Dataset):
         actions = self.add_padding(actions_splits, max_len, temporal=True)
         masks = self.create_masks(obs_splits, max_len)
         obs, actions, masks = obs[:, 64:], actions[:, 64:], masks[:, 64:]
-        goal = obs[:, -1, 18:27]
+        goal = obs[:, -1]
 
         self.data = {"obs": obs, "action": actions, "mask": masks, "goal": goal}
 
@@ -226,7 +226,7 @@ def get_dataloaders(
 
     # calculate value range
     dl = train_dataloader.dataset.dataset.dataset  # type: ignore
-    use_value_range = True
+    use_value_range = False
     if use_value_range:
         # gammas = torch.tensor([0.99**i for i in range(T)])
         returns = []

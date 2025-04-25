@@ -14,7 +14,7 @@ import isaaclab.utils.math as math_utils
 from flow_planning.envs import ParticleEnv
 from flow_planning.models.classifier import ClassifierMLP
 from flow_planning.models.unet import ConditionalUnet1D
-from flow_planning.utils import Normalizer, calculate_return, get_goal
+from flow_planning.utils import CostGPTrajectory, Normalizer, calculate_return, get_goal
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
@@ -57,6 +57,7 @@ class Policy(nn.Module):
         self.urdf_chain = pk.build_serial_chain_from_urdf(
             open("data/franka_panda/panda.urdf", mode="rb").read(), "panda_hand"
         ).to(device=env.device)
+        self.gp = CostGPTrajectory(self.T, 1 / 30, 1)
 
         self._create_model(model, lr, num_iters)
         self.to(device)
@@ -173,7 +174,7 @@ class Policy(nn.Module):
     def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
         # collision
         x = x.detach().clone().requires_grad_(True)
-        pts = torch.tensor([0.5, 0, 0.2]).to(self.device).expand(x.shape[0], 3)
+        pts = torch.tensor([0.5, 0, 0.2]).view(1, 1, -1).to(self.device)
         th = self.urdf_chain.forward_kinematics(x[0, :, :7], end_only=False)
         matrices = {k: v.get_matrix() for k, v in th.items()}
         pos = {k: v[:, :3, 3] for k, v in matrices.items()}
@@ -201,8 +202,9 @@ class Policy(nn.Module):
             # train and test case
             obs = data["obs"][:, 0]
             traj = self.normalizer.scale_obs(data["obs"])
-            returns = calculate_return(data["obs"])
-            returns = self.normalizer.scale_return(returns)
+            # returns = calculate_return(data["obs"])
+            # returns = self.normalizer.scale_return(returns)
+            returns = torch.ones(obs.shape[0], 1).to(self.device)
         else:
             # sim case
             traj = None
@@ -210,7 +212,7 @@ class Policy(nn.Module):
             returns = torch.ones(obs.shape[0], 1).to(self.device)
 
         obs = self.normalizer.scale_obs(obs)
-        goal = self.normalizer.scale_goal(data["goal"])
+        goal = self.normalizer.scale_obs(data["goal"])
 
         out = {"obs": obs, "goal": goal, "returns": returns}
         if traj is not None:
@@ -257,10 +259,10 @@ class Policy(nn.Module):
             rot = pk.matrix_to_quaternion(m[:, :3, :3])
 
             # get end effector position
-            pos_offset = torch.tensor([[0, 0, 0.107]]).to(self.device)
-            rot_offset = torch.tensor([[1, 0, 0, 0]]).to(self.device)
+            pos_offset = torch.tensor([[0, 0, 0.107]]).expand(pos.shape[0], 3)
+            rot_offset = torch.tensor([[1, 0, 0, 0]]).expand(rot.shape[0], 4)
             ee_pos, _ = math_utils.combine_frame_transforms(
-                pos, rot, pos_offset, rot_offset
+                pos, rot, pos_offset.to(self.device), rot_offset.to(self.device)
             )
 
             ee_goal = torch.tensor([0.5, 0.3, 0.2])
