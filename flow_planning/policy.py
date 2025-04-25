@@ -52,7 +52,7 @@ class Policy(nn.Module):
         # diffusion / flow matching
         self.sampling_steps = sampling_steps
         self.guide_scale = 0.0
-        self.use_refinement = False
+        self.use_refinement = True
 
         self.urdf_chain = pk.build_serial_chain_from_urdf(
             open("data/franka_panda/panda.urdf", mode="rb").read(), "panda_hand"
@@ -85,8 +85,8 @@ class Policy(nn.Module):
         if self.use_refinement and random.random() < 0.5:
             x_0 = torch.cat([x_0[:, : self.T // 2], x_0[:, self.T // 2 :]], dim=0)
             x_1 = torch.cat([x_1[:, : self.T // 2], x_1[:, self.T // 2 :]], dim=0)
-            data["obs"] = x_1[:, 0, self.action_dim :]
-            data["goal"] = x_1[:, -1, self.action_dim + 18 :]
+            data["obs"] = x_1[:, 0]
+            data["goal"] = x_1[:, -1]
 
         bsz = x_1.shape[0]
 
@@ -153,7 +153,7 @@ class Policy(nn.Module):
 
             data = {k: torch.cat([v] * 2) for k, v in data.items()}
             data["obs"][bsz:] = midpoint
-            data["goal"][:bsz] = midpoint[:, 18:27]
+            data["goal"][:bsz] = midpoint
 
             for i in range(self.sampling_steps // 2):
                 x = self.inpaint(x, data)
