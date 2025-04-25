@@ -128,6 +128,8 @@ class Runner:
 
                             if t == self.num_steps_per_env - 1:
                                 dones = torch.ones_like(dones)
+                            if dones.any():
+                                self.policy.reset()
 
                             # move device
                             obs, rewards, dones = (

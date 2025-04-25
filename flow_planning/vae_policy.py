@@ -22,8 +22,8 @@ class VAEPolicy(Policy):
         num_iters: int,
         device: str,
         use_geco: bool = True,
-        geco_goal: float = 0.2,
-        geco_step_size: float = 1e-4,
+        geco_goal: float = 0.01,
+        geco_step_size: float = 1e-3,
         geco_alpha: float = 0.99,
         beta_init: float = 1.0,
     ):
@@ -55,13 +55,13 @@ class VAEPolicy(Policy):
     def update(self, data):
         data = self.process(data)
         x = data["traj"]
+        batch_size = x.shape[0] * x.shape[1]
 
-        # Forward pass through VAE
+        # forward pass
         x_recon, mu, logvar = self.model(x)
-        # Compute individual loss components
-        _, recon_loss, kl_loss = self.model.compute_loss(
-            x, x_recon, mu, logvar, beta=1.0
-        )
+        # calculate losses
+        recon_loss = F.mse_loss(x_recon, x, reduction="sum") / batch_size
+        kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / batch_size
 
         # Update beta using GECO if enabled
         if self.use_geco:
@@ -123,32 +123,26 @@ class VAEPolicy(Policy):
             self.first_state = False
 
         x_hat = self.model.decode(self.z)
+
+        # prior loss
         prior_loss = -self.z_dist.log_prob(self.z).sum()
-        loss = torch.norm(x_hat - data["goal"]) + prior_loss
-        print(f"loss: {loss.item()}")
+
+        # collision loss
+        pts = torch.tensor([0.5, 0, 0.2]).view(1, 1, -1).to(self.device)
+        th = self.urdf_chain.forward_kinematics(x_hat[:, :7], end_only=False)
+        matrices = {k: v.get_matrix() for k, v in th.items()}
+        pos = {k: v[:, :3, 3] for k, v in matrices.items()}
+        pos = torch.stack(list(pos.values()), dim=1)
+        dists = torch.norm(pos - pts, dim=-1)
+        dists = torch.clamp(dists, min=0.0, max=1.0)
+
+        loss = torch.norm(x_hat - data["goal"]) - 5*dists.mean()  # + 0.01 * prior_loss
 
         self.z_optimizer.zero_grad()
         loss.backward()
         self.z_optimizer.step()
 
         # Convert to original scale
-        x = self.model.decode(self.z)
-        x = self.normalizer.clip(x)
-        return self.normalizer.inverse_scale_obs(x)
-
-    def optimize_trajectory(self, data: dict[str, Tensor], n_steps=100):
-        bsz = data["obs"].shape[0]
-
-        def cost_fn(x):
-            # Smoothness cost
-            smooth_cost = self.gp(x)
-            return smooth_cost
-
-        x, _ = self.model.latent_optimization(
-            cost_fn=cost_fn,
-            n_steps=n_steps,
-            batch_size=bsz,
-        )
-
+        x = self.model.decode(self.z).unsqueeze(0).detach()
         x = self.normalizer.clip(x)
         return self.normalizer.inverse_scale_obs(x)
