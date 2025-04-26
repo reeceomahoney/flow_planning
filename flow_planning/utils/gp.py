@@ -49,8 +49,6 @@ class GPFactor:
         self.tensor_args = tensor_args
         self.state_dim = self.dim * 2  # position and velocity
         self.num_factors = num_factors
-        self.idx1 = torch.arange(0, self.num_factors, device=tensor_args["device"])
-        self.idx2 = torch.arange(1, self.num_factors + 1, device=tensor_args["device"])
         self.phi = self.calc_phi()
         if Q_c_inv is None:
             Q_c_inv = torch.eye(dim, **tensor_args) / sigma**2
@@ -83,8 +81,10 @@ class GPFactor:
 
     def get_error(self, x_traj, calc_jacobian=True):
         batch, horizon = x_traj.shape[0], x_traj.shape[1]
-        state_1 = torch.index_select(x_traj, 1, self.idx1).unsqueeze(-1)
-        state_2 = torch.index_select(x_traj, 1, self.idx2).unsqueeze(-1)
+        idx1 = torch.arange(0, horizon - 1, device=self.tensor_args["device"])
+        idx2 = torch.arange(1, horizon, device=self.tensor_args["device"])
+        state_1 = torch.index_select(x_traj, 1, idx1).unsqueeze(-1)
+        state_2 = torch.index_select(x_traj, 1, idx2).unsqueeze(-1)
         error = state_2 - self.phi @ state_1
 
         if calc_jacobian:

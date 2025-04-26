@@ -2,7 +2,7 @@
 
 defaults:
   - env: franka
-  - experiment: mpd
+  - experiment: flow_planning
   - model: unet
   - _self_
 
@@ -30,7 +30,7 @@ act_dim: null
 num_envs: 64
 
 # diffusion
-sampling_steps: 25
+sampling_steps: 10
 
 policy:
   obs_dim: ${obs_dim}
@@ -41,6 +41,7 @@ policy:
   lr: 2e-4
   num_iters: ${num_iters}
   device: ${device}
+  algo: ${experiment.wandb_project}
 
 dataset:
   env_name: ${env.env_name}

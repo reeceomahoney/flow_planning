@@ -112,7 +112,7 @@ def main(agent_cfg: DictConfig):
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
     policy = runner.policy
-    policy.guide_scale = 1.5
+    policy.guide_scale = 1.2
 
     if args_cli.export:
         export_policy_as_jit(policy, ".")

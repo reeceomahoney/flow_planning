@@ -35,7 +35,7 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
         self.scene.obstacle = RigidObjectCfg(  # type: ignore
             prim_path="{ENV_REGEX_NS}/Obstacle",
             spawn=sim_utils.SphereCfg(
-                radius=0.05,
+                radius=0.2,
                 visual_material=sim_utils.PreviewSurfaceCfg(
                     diffuse_color=(1.0, 0.0, 0.0),
                     roughness=0.1,

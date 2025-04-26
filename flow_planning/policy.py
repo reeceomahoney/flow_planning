@@ -38,6 +38,7 @@ class Policy(nn.Module):
         lr: float,
         num_iters: int,
         device: str,
+        algo: str,
     ):
         super().__init__()
         self.env = env
@@ -56,6 +57,7 @@ class Policy(nn.Module):
         self.guide_scale = 0.0
         self.use_refinement = False
         self.scheduler = DDPMScheduler(self.sampling_steps)
+        self.algo = algo
 
         self.urdf_chain = pk.build_serial_chain_from_urdf(
             open("data/franka_panda/panda.urdf", mode="rb").read(), "panda_hand"
@@ -94,16 +96,7 @@ class Policy(nn.Module):
             data["obs"] = x_1[:, 0]
             data["goal"] = x_1[:, -1]
 
-        bsz = x_1.shape[0]
-
-        # compute sample and target
-        # t = torch.rand(bsz, 1, 1).to(self.device)
-        # x_t = (1 - t) * x_0 + t * x_1
-        # target = x_1 - x_0
-
-        t = torch.randint(0, self.sampling_steps, (bsz, 1, 1)).to(self.device)
-        x_t = self.scheduler.add_noise(x_1, x_0, t)  # type: ignore
-        target = x_0
+        x_t, target, t = self._compute_sample(x_1, x_0)
 
         # compute model output
         x_t = self.inpaint(x_t, data)
@@ -119,6 +112,20 @@ class Policy(nn.Module):
         self.lr_scheduler.step()
 
         return loss.item()
+
+    def _compute_sample(self, x_1: Tensor, x_0: Tensor) -> tuple:
+        bsz = x_1.shape[0]
+        if self.algo == "flow_planning":
+            t = torch.rand(bsz, 1, 1).to(self.device)
+            x_t = (1 - t) * x_0 + t * x_1
+            target = x_1 - x_0
+        elif self.algo == "mpd":
+            t = torch.randint(0, self.sampling_steps, (bsz, 1, 1)).to(self.device)
+            x_t = self.scheduler.add_noise(x_1, x_0, t)  # type: ignore
+            target = x_0
+        else:
+            raise NotImplementedError(f"Unknown algorithm: {self.algo}")
+        return x_t, target, t
 
     @torch.no_grad()
     def test(self, data: dict) -> float:
@@ -136,34 +143,25 @@ class Policy(nn.Module):
         # sample noise
         bsz = data["obs"].shape[0]
         x = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
-        # timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
-        self.scheduler.set_timesteps(self.sampling_steps, self.device)
-        timesteps = self.scheduler.timesteps
+
+        if self.algo == "flow_planning":
+            timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
+        elif self.algo == "mpd":
+            self.scheduler.set_timesteps(self.sampling_steps, self.device)
+            timesteps = self.scheduler.timesteps
+        else:
+            raise NotImplementedError(f"Unknown algorithm: {self.algo}")
 
         # inference
         for i in range(self.sampling_steps):
             x = self.inpaint(x, data)
-
-            # t_start = expand_t(timesteps[i], bsz)
-            # t_end = expand_t(timesteps[i + 1], bsz)
-            # x += (t_end - t_start) * self.model(x, t_start, data)
-
-            t = timesteps[i].view(-1, 1, 1).expand(bsz, 1, 1).float()
-            out = self.model(x, t, data)
-            x = self.scheduler.step(out, timesteps[i], x).prev_sample  # type: ignore
-
-            # guidance
-            if self.guide_scale > 0:
-                grad = self._guide_fn(x, timesteps[i], data)
-                # weight = self.guide_scale * (1 - timesteps[i + 1])
-                weight = self.guide_scale * self.scheduler._get_variance(timesteps[i])
-                x += weight * grad
+            x = self._step(x, timesteps[i], timesteps[i + 1], data)
 
         x = self.inpaint(x, data)
 
         # refinement step
         if self.use_refinement:
-            midpoint = x[:, self.T // 2, self.action_dim :].clone()
+            midpoint = x[:, self.T // 2].clone()
             x_0 = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
             x = 0.5 * x_0 + 0.5 * x
             x = torch.cat([x[:, : self.T // 2], x[:, self.T // 2 :]], dim=0)
@@ -174,10 +172,9 @@ class Policy(nn.Module):
 
             for i in range(self.sampling_steps // 2):
                 x = self.inpaint(x, data)
-
-                t_start = expand_t(timesteps[i + self.sampling_steps // 2], 2 * bsz)
-                t_end = expand_t(timesteps[i + 1 + self.sampling_steps // 2], 2 * bsz)
-                x += (t_end - t_start) * self.model(x, t_start, data)
+                t_start = timesteps[i + self.sampling_steps // 2]
+                t_end = timesteps[i + 1 + self.sampling_steps // 2]
+                x = self._step(x, t_start, t_end, data)
 
             x = self.inpaint(x, data)
             x = torch.cat([x[:bsz], x[bsz:]], dim=1)
@@ -185,6 +182,30 @@ class Policy(nn.Module):
         # denormalize
         x = self.normalizer.clip(x)
         return self.normalizer.inverse_scale_obs(x)
+
+    def _step(
+        self, x: Tensor, t_start: Tensor, t_end: Tensor, data: dict[str, Tensor]
+    ) -> Tensor:
+        bsz = data["obs"].shape[0]
+        if self.algo == "flow_planning":
+            t_start = expand_t(t_start, bsz)
+            t_end = expand_t(t_end, bsz)
+            x += (t_end - t_start) * self.model(x, t_start, data)
+            var = 1 - t_end
+        elif self.algo == "mpd":
+            t = t_start.view(-1, 1, 1).expand(bsz, 1, 1).float()
+            out = self.model(x, t, data)
+            x = self.scheduler.step(out, t_start, x).prev_sample  # type: ignore
+            var = self.scheduler._get_variance(t_end)
+        else:
+            raise NotImplementedError(f"Unknown algorithm: {self.algo}")
+
+        # guidance
+        if self.guide_scale > 0:
+            grad = self._guide_fn(x, t_start, data)
+            x += self.guide_scale * var * grad  # type: ignore
+
+        return x
 
     @torch.enable_grad()
     def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
@@ -196,16 +217,14 @@ class Policy(nn.Module):
         pos = {k: v[:, :3, 3] for k, v in matrices.items()}
         pos = torch.stack(list(pos.values()), dim=1)
         dists = torch.norm(pos - pts, dim=-1)
-        collision_grad = torch.autograd.grad([dists.sum()], [x], create_graph=True)[0]
-        collision_grad.detach_()
+        collision_grad = torch.autograd.grad([dists.sum()], [x])[0].detach()
 
         # smoothness
         x = x.detach().clone().requires_grad_(True)
         cost = self.gp(x)
-        smooth_grad = torch.autograd.grad([cost.sum()], [x], create_graph=True)[0]
-        smooth_grad.detach_()
+        smooth_grad = torch.autograd.grad([cost.sum()], [x])[0].detach()
 
-        return 0.2 * collision_grad  # - 1e-6 * smooth_grad
+        return 0.20 * collision_grad - 1e-6 * smooth_grad
 
     ###################
     # Data processing #
