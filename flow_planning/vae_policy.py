@@ -128,15 +128,16 @@ class VAEPolicy(Policy):
         prior_loss = -self.z_dist.log_prob(self.z).sum()
 
         # collision loss
-        pts = torch.tensor([0.5, 0, 0.2]).view(1, 1, -1).to(self.device)
+        pts = torch.tensor([0.5, 0.0, 0.2]).view(1, 1, -1).to(self.device)
         th = self.urdf_chain.forward_kinematics(x_hat[:, :7], end_only=False)
         matrices = {k: v.get_matrix() for k, v in th.items()}
         pos = {k: v[:, :3, 3] for k, v in matrices.items()}
         pos = torch.stack(list(pos.values()), dim=1)
-        dists = torch.norm(pos - pts, dim=-1)
-        dists = torch.clamp(dists, min=0.0, max=1.0)
+        dists = pos - pts
+        dists[..., 1] = 0  # model obstacle as a cylinder
+        dists = torch.norm(dists, dim=-1)
 
-        loss = torch.norm(x_hat - data["goal"]) - 5*dists.mean()  # + 0.01 * prior_loss
+        loss = torch.norm(x_hat - data["goal"]) - 4.25 * dists.mean() + 1e-4 * prior_loss
 
         self.z_optimizer.zero_grad()
         loss.backward()

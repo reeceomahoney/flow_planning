@@ -102,17 +102,11 @@ def main(agent_cfg: DictConfig):
     env_name = agent_cfg.env.env_name
     experiment = agent_cfg.experiment.wandb_project
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
-    env.unwrapped.sim.set_camera_view([3.0, 0.0, 0.2], [0.0, 0.0, 0.2])
+    env.unwrapped.sim.set_camera_view([2.0, 0.0, 0.4], [0.0, 0.0, 0.4])
 
-    if experiment == "classifier":
-        runner = ClassifierRunner(env, agent_cfg, device=agent_cfg.device)
-        log_root_path = os.path.abspath("logs/classifier")
-    elif experiment == "vae":
-        runner = Runner(env, agent_cfg, device=agent_cfg.device)
-        log_root_path = os.path.abspath("logs/vae")
-    else:
-        runner = Runner(env, agent_cfg, device=agent_cfg.device)
-        log_root_path = os.path.abspath("logs/flow_planning")
+    runner_class = ClassifierRunner if experiment == "classifier" else Runner
+    runner = runner_class(env, agent_cfg, device=agent_cfg.device)
+    log_root_path = os.path.abspath(f"logs/{experiment}")
 
     resume_path = get_latest_run(log_root_path)
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")

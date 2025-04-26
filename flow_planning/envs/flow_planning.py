@@ -12,7 +12,6 @@ from .rsl_rl import T_MAX, FrankaRLEnvCfg
 class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-        FRANKA_PANDA_HIGH_PD_CFG.spawn.rigid_props.disable_gravity = False  # type: ignore
         self.scene.robot = FRANKA_PANDA_HIGH_PD_CFG.replace(
             prim_path="{ENV_REGEX_NS}/Robot"
         )  # type: ignore
@@ -36,7 +35,7 @@ class FrankaFlowPlanningEnvCfg(FrankaRLEnvCfg):
         self.scene.obstacle = RigidObjectCfg(  # type: ignore
             prim_path="{ENV_REGEX_NS}/Obstacle",
             spawn=sim_utils.SphereCfg(
-                radius=0.1,
+                radius=0.05,
                 visual_material=sim_utils.PreviewSurfaceCfg(
                     diffuse_color=(1.0, 0.0, 0.0),
                     roughness=0.1,
