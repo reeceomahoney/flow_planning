@@ -128,14 +128,12 @@ class Policy(nn.Module):
         return x_t, target, t
 
     @torch.no_grad()
-    def test(self, data: dict) -> tuple[float, float]:
+    def test(self, data: dict) -> float:
         data = self.process(data)
         x = self.forward(data)
         # calculate loss
         traj = self.normalizer.inverse_scale_obs(data["traj"])
-        mse = F.mse_loss(x, traj).item()
-        goal_error = F.mse_loss(traj[:, -2], data["goal"]).item()
-        return mse, goal_error
+        return F.mse_loss(x, traj).item()
 
     #####################
     # Inference backend #
@@ -284,12 +282,44 @@ class Policy(nn.Module):
     # Visualization #
     #################
 
+    def calculate_goal_error(self) -> Tensor:
+        # fmt: off
+        init_pos = torch.tensor([
+            # (0.5, -0.3, 0.2)
+            [-1.6615e-01, 2.7841e-01, -3.8028e-01, -2.0778e00, 1.3647e-01, 2.3238e00, 1.4746e-01],
+            # (0.5, -0.3, 0.6)
+            [-2.7545e-01, 2.4703e-01, -3.3734e-01, -1.0436e00, 8.1770e-02, 1.2697e00, 1.9731e-01],
+        ])
+        goal_pos = torch.tensor([
+            # (0.5, 0.3, 0.6)
+            [2.5962, -0.5873, -1.4645, -1.1460, -0.6212,  1.2096,  1.6562],
+            # (0.5, 0.3, 0.2)
+            [0.1118,  0.2624,  0.4228, -2.0830, -0.1448,  2.3247,  1.4210],
+        ])
+        # fmt: on
+
+        # sample data
+        indices = torch.randint(0, 2, (64,))
+        init_pos_batch = init_pos[indices]
+        goal_pos_batch = goal_pos[indices]
+        obs = torch.cat([init_pos_batch, torch.zeros_like(init_pos_batch)], dim=-1)
+        goal = torch.cat([goal_pos_batch, torch.zeros_like(goal_pos_batch)], dim=-1)
+
+        # compute trajectories
+        data = self.process({"obs": obs, "goal": goal})
+        traj = self.forward(data)
+
+        # calculate error
+        traj = self.normalizer.inverse_scale_obs(traj)
+        error = torch.norm(traj[:, -2] - goal_pos_batch)
+        return error
+
     def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
         obs, _ = self.env.get_observations()
         goal = get_goal(self.env)
         # create figure
-        guide_scales = torch.tensor([0, 1, 1.2, 1.4, 1.6])
+        guide_scales = torch.tensor([0])
         # projection = "3d" if self.isaac_env else None
         projection = None
         plt.rcParams.update({"font.size": 24})

@@ -52,7 +52,7 @@ def reset_joints_fixed(
     idx = cmd_manager.current_stage
 
     # fmt: off
-    rel_pos_list = [
+    pos_list = [
         # (0.5, -0.3, 0.2)
         [-1.6615e-01, 2.7841e-01, -3.8028e-01, -2.0778e00, 1.3647e-01, 2.3238e00, 1.4746e-01, 0, 0],
         # (0.5, -0.3, 0.6)
@@ -61,7 +61,7 @@ def reset_joints_fixed(
     # fmt: on
 
     # build joint position
-    joint_pos = torch.tensor(rel_pos_list[idx], device=env.device)
+    joint_pos = torch.tensor(pos_list[idx], device=env.device)
     joint_pos = joint_pos.unsqueeze(0).expand(env_ids.shape[0], -1)
 
     # set velocities to zero

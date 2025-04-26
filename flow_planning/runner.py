@@ -161,15 +161,14 @@ class Runner:
             # evaluation
             if it % self.cfg.eval_interval == 0:
                 with InferenceContext(self):
-                    test_mse, goal_error = [], []
+                    test_mse  = []
                     for batch in tqdm(self.test_loader, desc="Testing...", leave=False):
                         mse, err = self.policy.test(batch)
                         test_mse.append(mse)
-                        goal_error.append(err)
                     test_mse = statistics.mean(test_mse)
-                    goal_error = statistics.mean(goal_error)
 
                 self.policy.plot(it)
+                goal_error = self.policy.calculate_goal_error()
 
             # training
             try:
