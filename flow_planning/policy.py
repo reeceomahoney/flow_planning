@@ -140,22 +140,15 @@ class Policy(nn.Module):
     #####################
 
     def forward(self, data: dict[str, Tensor]) -> torch.Tensor:
-        # sample noise
         bsz = data["obs"].shape[0]
+        # sample noise
         x = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
-
-        if self.algo == "flow_planning":
-            timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
-        elif self.algo == "mpd":
-            self.scheduler.set_timesteps(self.sampling_steps, self.device)
-            timesteps = self.scheduler.timesteps
-        else:
-            raise NotImplementedError(f"Unknown algorithm: {self.algo}")
+        self._compute_timesteps()
 
         # inference
         for i in range(self.sampling_steps):
             x = self.inpaint(x, data)
-            x = self._step(x, timesteps[i], timesteps[i + 1], data)
+            x = self._step(x, i, data)
 
         x = self.inpaint(x, data)
 
@@ -172,9 +165,7 @@ class Policy(nn.Module):
 
             for i in range(self.sampling_steps // 2):
                 x = self.inpaint(x, data)
-                t_start = timesteps[i + self.sampling_steps // 2]
-                t_end = timesteps[i + 1 + self.sampling_steps // 2]
-                x = self._step(x, t_start, t_end, data)
+                x = self._step(x, i + self.sampling_steps // 2, data)
 
             x = self.inpaint(x, data)
             x = torch.cat([x[:bsz], x[bsz:]], dim=1)
@@ -183,37 +174,47 @@ class Policy(nn.Module):
         x = self.normalizer.clip(x)
         return self.normalizer.inverse_scale_obs(x)
 
-    def _step(
-        self, x: Tensor, t_start: Tensor, t_end: Tensor, data: dict[str, Tensor]
-    ) -> Tensor:
+    def _compute_timesteps(self):
+        if self.algo == "flow_planning":
+            self.timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(
+                self.device
+            )
+        elif self.algo == "mpd":
+            self.scheduler.set_timesteps(self.sampling_steps, self.device)
+            self.timesteps = self.scheduler.timesteps
+        else:
+            raise NotImplementedError(f"Unknown algorithm: {self.algo}")
+
+    def _step(self, x: Tensor, idx: int, data: dict[str, Tensor]) -> Tensor:
         bsz = data["obs"].shape[0]
         if self.algo == "flow_planning":
-            t_start = expand_t(t_start, bsz)
-            t_end = expand_t(t_end, bsz)
-            x += (t_end - t_start) * self.model(x, t_start, data)
-            var = 1 - t_end
+            t = expand_t(self.timesteps[idx], bsz)
+            t_end = expand_t(self.timesteps[idx + 1], bsz)
+            x += (t_end - t) * self.model(x, t, data)
+            var = 1 - t
         elif self.algo == "mpd":
-            t = t_start.view(-1, 1, 1).expand(bsz, 1, 1).float()
-            out = self.model(x, t, data)
-            x = self.scheduler.step(out, t_start, x).prev_sample  # type: ignore
-            var = self.scheduler._get_variance(t_end)
+            t = self.timesteps[idx]
+            t_ = t.view(-1, 1, 1).expand(bsz, 1, 1).float()
+            out = self.model(x, t_, data)
+            x = self.scheduler.step(out, t, x).prev_sample  # type: ignore
+            var = self.scheduler._get_variance(t)
         else:
             raise NotImplementedError(f"Unknown algorithm: {self.algo}")
 
         # guidance
         if self.guide_scale > 0:
-            grad = self._guide_fn(x, t_start, data)
+            grad = self._guide_fn(x)
             x += self.guide_scale * var * grad  # type: ignore
 
         return x
 
     @torch.enable_grad()
-    def _guide_fn(self, x: Tensor, t: Tensor, data: dict[str, Tensor]) -> Tensor:
+    def _guide_fn(self, x: Tensor) -> Tensor:
         # collision
         x = x.detach().clone().requires_grad_(True)
         pts = torch.tensor([0.5, 0, 0.2]).view(1, 1, -1).to(self.device)
         th = self.urdf_chain.forward_kinematics(x[0, :, :7], end_only=False)
-        matrices = {k: v.get_matrix() for k, v in th.items()}
+        matrices = {k: v.get_matrix() for k, v in th.items()}  # type: ignore
         pos = {k: v[:, :3, 3] for k, v in matrices.items()}
         pos = torch.stack(list(pos.values()), dim=1)
         dists = torch.norm(pos - pts, dim=-1)
