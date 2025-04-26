@@ -9,6 +9,7 @@ import wandb
 from torch import Tensor
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 
 import isaaclab.utils.math as math_utils
 from flow_planning.envs import ParticleEnv
@@ -53,7 +54,8 @@ class Policy(nn.Module):
         # diffusion / flow matching
         self.sampling_steps = sampling_steps
         self.guide_scale = 0.0
-        self.use_refinement = True
+        self.use_refinement = False
+        self.scheduler = DDPMScheduler(self.sampling_steps)
 
         self.urdf_chain = pk.build_serial_chain_from_urdf(
             open("data/franka_panda/panda.urdf", mode="rb").read(), "panda_hand"
@@ -95,9 +97,13 @@ class Policy(nn.Module):
         bsz = x_1.shape[0]
 
         # compute sample and target
-        t = torch.rand(bsz, 1, 1).to(self.device)
-        x_t = (1 - t) * x_0 + t * x_1
-        target = x_1 - x_0
+        # t = torch.rand(bsz, 1, 1).to(self.device)
+        # x_t = (1 - t) * x_0 + t * x_1
+        # target = x_1 - x_0
+
+        t = torch.randint(0, self.sampling_steps, (bsz, 1, 1)).to(self.device)
+        x_t = self.scheduler.add_noise(x_1, x_0, t)  # type: ignore
+        target = x_0
 
         # compute model output
         x_t = self.inpaint(x_t, data)
@@ -130,20 +136,27 @@ class Policy(nn.Module):
         # sample noise
         bsz = data["obs"].shape[0]
         x = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
-        timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
+        # timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
+        self.scheduler.set_timesteps(self.sampling_steps, self.device)
+        timesteps = self.scheduler.timesteps
 
         # inference
         for i in range(self.sampling_steps):
             x = self.inpaint(x, data)
 
-            t_start = expand_t(timesteps[i], bsz)
-            t_end = expand_t(timesteps[i + 1], bsz)
-            x += (t_end - t_start) * self.model(x, t_start, data)
+            # t_start = expand_t(timesteps[i], bsz)
+            # t_end = expand_t(timesteps[i + 1], bsz)
+            # x += (t_end - t_start) * self.model(x, t_start, data)
+
+            t = timesteps[i].view(-1, 1, 1).expand(bsz, 1, 1).float()
+            out = self.model(x, t, data)
+            x = self.scheduler.step(out, timesteps[i], x).prev_sample  # type: ignore
 
             # guidance
             if self.guide_scale > 0:
-                grad = self._guide_fn(x, timesteps[i + 1], data)
-                weight = self.guide_scale * (1 - timesteps[i + 1])
+                grad = self._guide_fn(x, timesteps[i], data)
+                # weight = self.guide_scale * (1 - timesteps[i + 1])
+                weight = self.guide_scale * self.scheduler._get_variance(timesteps[i])
                 x += weight * grad
 
         x = self.inpaint(x, data)

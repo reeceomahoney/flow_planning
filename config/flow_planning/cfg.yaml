@@ -2,7 +2,7 @@
 
 defaults:
   - env: franka
-  - experiment: flow_planning
+  - experiment: mpd
   - model: unet
   - _self_
 
@@ -30,7 +30,7 @@ act_dim: null
 num_envs: 64
 
 # diffusion
-sampling_steps: 10
+sampling_steps: 25
 
 policy:
   obs_dim: ${obs_dim}
