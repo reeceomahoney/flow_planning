@@ -163,7 +163,7 @@ class Runner:
                 with InferenceContext(self):
                     test_mse  = []
                     for batch in tqdm(self.test_loader, desc="Testing...", leave=False):
-                        mse, err = self.policy.test(batch)
+                        mse = self.policy.test(batch)
                         test_mse.append(mse)
                     test_mse = statistics.mean(test_mse)
 
@@ -259,8 +259,8 @@ class Runner:
             "norm_state_dict": self.policy.normalizer.state_dict(),
             "iter": self.current_learning_iteration,
         }
-        if not self.simulate:
-            saved_dict["classifier_state_dict"] = self.policy.classifier.state_dict()
+        # if not self.simulate:
+        #     saved_dict["classifier_state_dict"] = self.policy.classifier.state_dict()
 
         torch.save(saved_dict, path)
 
@@ -275,8 +275,8 @@ class Runner:
         self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
         self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
         self.policy.normalizer.load_state_dict(loaded_dict["norm_state_dict"])
-        if not self.simulate:
-            self.policy.classifier.load_state_dict(loaded_dict["classifier_state_dict"])
+        # if not self.simulate:
+        #     self.policy.classifier.load_state_dict(loaded_dict["classifier_state_dict"])
 
 
 class ClassifierRunner(Runner):

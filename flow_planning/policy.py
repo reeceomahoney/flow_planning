@@ -282,20 +282,20 @@ class Policy(nn.Module):
     # Visualization #
     #################
 
-    def calculate_goal_error(self) -> Tensor:
+    def calculate_goal_error(self) -> float:
         # fmt: off
         init_pos = torch.tensor([
             # (0.5, -0.3, 0.2)
             [-1.6615e-01, 2.7841e-01, -3.8028e-01, -2.0778e00, 1.3647e-01, 2.3238e00, 1.4746e-01],
             # (0.5, -0.3, 0.6)
             [-2.7545e-01, 2.4703e-01, -3.3734e-01, -1.0436e00, 8.1770e-02, 1.2697e00, 1.9731e-01],
-        ])
+        ]).to(self.device)
         goal_pos = torch.tensor([
             # (0.5, 0.3, 0.6)
             [2.5962, -0.5873, -1.4645, -1.1460, -0.6212,  1.2096,  1.6562],
             # (0.5, 0.3, 0.2)
             [0.1118,  0.2624,  0.4228, -2.0830, -0.1448,  2.3247,  1.4210],
-        ])
+        ]).to(self.device)
         # fmt: on
 
         # sample data
@@ -311,8 +311,9 @@ class Policy(nn.Module):
 
         # calculate error
         traj = self.normalizer.inverse_scale_obs(traj)
-        error = torch.norm(traj[:, -2] - goal_pos_batch)
-        return error
+        init_error = torch.norm(traj[:, 1] - obs).item()
+        final_error = torch.norm(traj[:, -2] - goal).item()
+        return (init_error + final_error) / 2
 
     def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
