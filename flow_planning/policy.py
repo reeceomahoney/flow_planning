@@ -6,10 +6,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from torch import Tensor
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 
 import isaaclab.utils.math as math_utils
 from flow_planning.envs import ParticleEnv
@@ -128,12 +128,14 @@ class Policy(nn.Module):
         return x_t, target, t
 
     @torch.no_grad()
-    def test(self, data: dict) -> float:
+    def test(self, data: dict) -> tuple[float, float]:
         data = self.process(data)
         x = self.forward(data)
         # calculate loss
         traj = self.normalizer.inverse_scale_obs(data["traj"])
-        return F.mse_loss(x, traj).item()
+        mse = F.mse_loss(x, traj).item()
+        goal_error = F.mse_loss(traj[:, -2], data["goal"]).item()
+        return mse, goal_error
 
     #####################
     # Inference backend #

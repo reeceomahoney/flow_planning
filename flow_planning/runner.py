@@ -59,7 +59,8 @@ class Runner:
             self.num_steps_per_env = self.env.max_episode_length  # type: ignore
         self.log_dir = log_dir
         self.current_learning_iteration = 0
-        self.simulate = self._set_simulate()
+        # self.simulate = self._set_simulate()
+        self.simulate = False
 
         # logging
         if self.log_dir is not None:
@@ -160,11 +161,13 @@ class Runner:
             # evaluation
             if it % self.cfg.eval_interval == 0:
                 with InferenceContext(self):
-                    test_mse = []
+                    test_mse, goal_error = [], []
                     for batch in tqdm(self.test_loader, desc="Testing...", leave=False):
-                        mse = self.policy.test(batch)
+                        mse, err = self.policy.test(batch)
                         test_mse.append(mse)
+                        goal_error.append(err)
                     test_mse = statistics.mean(test_mse)
+                    goal_error = statistics.mean(goal_error)
 
                 self.policy.plot(it)
 
@@ -214,6 +217,7 @@ class Runner:
         # evaluation
         if locs["it"] % self.cfg.eval_interval == 0:
             wandb.log({"Loss/test_mse": locs["test_mse"]}, step=locs["it"])
+            wandb.log({"Loss/goal_error": locs["goal_error"]}, step=locs["it"])
         # simulation
         if self.simulate and locs["it"] % self.cfg.sim_interval == 0:
             if locs["ep_infos"]:
