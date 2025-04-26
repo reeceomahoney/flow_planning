@@ -20,7 +20,7 @@ class FlowPlanningDataset(Dataset):
         if env_name.startswith("Isaac"):
             # build path
             current_dir = os.path.dirname(os.path.realpath(__file__))
-            data_directory = "/data/ik/data.hdf5"
+            data_directory = "/data/ik/x_data.hdf5"
             dataset_path = current_dir + "/../../" + data_directory
             log.info(f"Loading data from {data_directory}")
 
@@ -41,7 +41,6 @@ class FlowPlanningDataset(Dataset):
             }
             obs = data["observations"]
             # remove commands
-            obs = obs[..., :27]
             actions = data["actions"]
             terminals = data["terminals"]
             # HACK: We need this because we're recording every other step, fix this

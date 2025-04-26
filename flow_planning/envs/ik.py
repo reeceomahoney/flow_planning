@@ -35,4 +35,4 @@ class FrankaIKEnvCfg(FrankaRLEnvCfg):
             nullspace_joint_pos_target="default",
             body_offset=CustomOscActionCfg.OffsetCfg(pos=(0.0, 0.0, 0.107)),
         )
-        self.episode_length_s = 2 * T_MAX
+        # self.episode_length_s = 2 * T_MAX

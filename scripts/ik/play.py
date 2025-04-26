@@ -64,7 +64,7 @@ def main(agent_cfg: DictConfig):
 
     # create data collector
     if args_cli.collect:
-        collector = DataCollector(env, "data/ik/data.hdf5")
+        collector = DataCollector(env, "data/ik/x_data.hdf5")
         pbar = tqdm(total=args_cli.num_timesteps, desc="Collecting data")
         max_vals = torch.tensor([50, 50, 50, 50, 3, 3, 3]).to(device=env.device)
     else:
