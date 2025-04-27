@@ -45,6 +45,7 @@ class FlowPlanningDataset(Dataset):
             terminals = data["terminals"]
             # HACK: We need this because we're recording every other step, fix this
             terminals[:, 63] = 1
+            terminals[:, -1] = 1
             split_indices = torch.where(terminals.flatten() == 1)[0] + 1
 
             obs_splits = self.split_eps(obs, split_indices)

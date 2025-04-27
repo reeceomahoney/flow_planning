@@ -282,6 +282,7 @@ class Policy(nn.Module):
     # Visualization #
     #################
 
+    @torch.no_grad()
     def calculate_goal_error(self) -> float:
         # fmt: off
         init_pos = torch.tensor([
