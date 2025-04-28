@@ -283,7 +283,7 @@ class Policy(nn.Module):
     #################
 
     @torch.no_grad()
-    def calculate_goal_error(self) -> float:
+    def calculate_goal_error(self) -> tuple[float, float]:
         # fmt: off
         init_pos = torch.tensor([
             # (0.5, -0.3, 0.2)
@@ -311,10 +311,13 @@ class Policy(nn.Module):
         traj = self.forward(data)
 
         # calculate error
-        traj = self.normalizer.inverse_scale_obs(traj)
-        init_error = torch.norm(traj[:, 1] - obs).item()
-        final_error = torch.norm(traj[:, -2] - goal).item()
-        return (init_error + final_error) / 2
+        init_error = torch.norm(traj[:, 1] - obs, dim=1).mean().item()
+        final_error = torch.norm(traj[:, -2] - goal, dim=1).mean().item()
+        tot_error = (init_error + final_error) / 2
+        init_std = torch.std(traj[:, 1] - obs, dim=1).mean().item()
+        final_std = torch.std(traj[:, -2] - goal, dim=1).mean().item()
+        tot_std = (init_std + final_std) / 2
+        return tot_error, tot_std
 
     def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
