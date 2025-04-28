@@ -298,39 +298,27 @@ class Policy(nn.Module):
             [2.5962, -0.5873, -1.4645, -1.1460, -0.6212,  1.2096,  1.6562],
         ]).to(self.device)
         # fmt: on
-        init_ee_pos = torch.tensor([[0.5, -0.3, 0.2], [0.5, -0.3, 0.6]]).to(self.device)
-        goal_ee_pos = torch.tensor([[0.5, 0.3, 0.2], [0.5, 0.3, 0.6]]).to(self.device)
 
         # sample data
         indices = torch.randint(0, 2, (64,))
         init_pos_batch = init_pos[indices]
         goal_pos_batch = goal_pos[indices]
-        init_ee_pos_batch = init_ee_pos[indices]
-        goal_ee_pos_batch = goal_ee_pos[indices]
         obs = torch.cat([init_pos_batch, torch.zeros_like(init_pos_batch)], dim=-1)
         goal = torch.cat([goal_pos_batch, torch.zeros_like(goal_pos_batch)], dim=-1)
 
         # compute trajectories
         data = self.process({"obs": obs, "goal": goal})
         traj = self.forward(data)
-        pred_init_ee_pos = self.compute_ee_pos(traj[:, 1].unsqueeze(0))
-        pred_final_ee_pos = self.compute_ee_pos(traj[:, -2].unsqueeze(0))
 
-        # calculate ee error
-        init_ee_error = (
-            torch.norm(pred_init_ee_pos - init_ee_pos_batch, dim=1).mean().item()
-        )
-        final_ee_error = (
-            torch.norm(pred_final_ee_pos - goal_ee_pos_batch, dim=1).mean().item()
-        )
-        # calculate ee error std
-        init_std = torch.norm(pred_init_ee_pos - init_ee_pos_batch, dim=1).std().item()
-        final_std = (
-            torch.norm(pred_final_ee_pos - goal_ee_pos_batch, dim=1).std().item()
-        )
+        # calculate error
+        init_error = torch.norm(traj[:, 1, :7] - obs[:, :7], dim=1).mean().item()
+        final_error = torch.norm(traj[:, -2, :7] - goal[:, :7], dim=1).mean().item()
+        # calculate error std
+        init_std = torch.norm(traj[:, 1, :7] - obs[:, :7], dim=1).std().item()
+        final_std = torch.norm(traj[:, -2, :7] - goal[:, :7], dim=1).std().item()
         tot_std = (init_std + final_std) / 2
-        tot_ee_error = (init_ee_error + final_ee_error) / 2
-        return tot_ee_error, tot_std
+        tot_error = (init_error + final_error) / 2
+        return tot_error, tot_std
 
     def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
