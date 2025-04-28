@@ -90,7 +90,7 @@ class Policy(nn.Module):
         x_1 = data["traj"]
         x_0 = torch.randn_like(x_1)
 
-        if self.use_refinement and random.random() < 0.5:
+        if random.random() < 0.5:
             x_0 = torch.cat([x_0[:, : self.T // 2], x_0[:, self.T // 2 :]], dim=0)
             x_1 = torch.cat([x_1[:, : self.T // 2], x_1[:, self.T // 2 :]], dim=0)
             data["obs"] = x_1[:, 0]
@@ -292,37 +292,50 @@ class Policy(nn.Module):
             [-2.7545e-01, 2.4703e-01, -3.3734e-01, -1.0436e00, 8.1770e-02, 1.2697e00, 1.9731e-01],
         ]).to(self.device)
         goal_pos = torch.tensor([
-            # (0.5, 0.3, 0.6)
-            [2.5962, -0.5873, -1.4645, -1.1460, -0.6212,  1.2096,  1.6562],
             # (0.5, 0.3, 0.2)
             [0.1118,  0.2624,  0.4228, -2.0830, -0.1448,  2.3247,  1.4210],
+            # (0.5, 0.3, 0.6)
+            [2.5962, -0.5873, -1.4645, -1.1460, -0.6212,  1.2096,  1.6562],
         ]).to(self.device)
         # fmt: on
+        init_ee_pos = torch.tensor([[0.5, -0.3, 0.2], [0.5, -0.3, 0.6]]).to(self.device)
+        goal_ee_pos = torch.tensor([[0.5, 0.3, 0.2], [0.5, 0.3, 0.6]]).to(self.device)
 
         # sample data
         indices = torch.randint(0, 2, (64,))
         init_pos_batch = init_pos[indices]
         goal_pos_batch = goal_pos[indices]
+        init_ee_pos_batch = init_ee_pos[indices]
+        goal_ee_pos_batch = goal_ee_pos[indices]
         obs = torch.cat([init_pos_batch, torch.zeros_like(init_pos_batch)], dim=-1)
         goal = torch.cat([goal_pos_batch, torch.zeros_like(goal_pos_batch)], dim=-1)
 
         # compute trajectories
         data = self.process({"obs": obs, "goal": goal})
         traj = self.forward(data)
+        pred_init_ee_pos = self.compute_ee_pos(traj[:, 1].unsqueeze(0))
+        pred_final_ee_pos = self.compute_ee_pos(traj[:, -2].unsqueeze(0))
 
-        # calculate error
-        init_error = torch.norm(traj[:, 1] - obs, dim=1).mean().item()
-        final_error = torch.norm(traj[:, -2] - goal, dim=1).mean().item()
-        tot_error = (init_error + final_error) / 2
-        init_std = torch.std(traj[:, 1] - obs, dim=1).mean().item()
-        final_std = torch.std(traj[:, -2] - goal, dim=1).mean().item()
+        # calculate ee error
+        init_ee_error = (
+            torch.norm(pred_init_ee_pos - init_ee_pos_batch, dim=1).mean().item()
+        )
+        final_ee_error = (
+            torch.norm(pred_final_ee_pos - goal_ee_pos_batch, dim=1).mean().item()
+        )
+        # calculate ee error std
+        init_std = torch.norm(pred_init_ee_pos - init_ee_pos_batch, dim=1).std().item()
+        final_std = (
+            torch.norm(pred_final_ee_pos - goal_ee_pos_batch, dim=1).std().item()
+        )
         tot_std = (init_std + final_std) / 2
-        return tot_error, tot_std
+        tot_ee_error = (init_ee_error + final_ee_error) / 2
+        return tot_ee_error, tot_std
 
     def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
-        obs, _ = self.env.get_observations()
-        goal = get_goal(self.env)
+        obs = self.env.get_observations()[0][0:1]
+        goal = get_goal(self.env)[0:1]
         # create figure
         guide_scales = torch.tensor([0])
         # projection = "3d" if self.isaac_env else None
