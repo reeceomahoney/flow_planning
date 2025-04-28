@@ -18,6 +18,12 @@ from . import mdp
 
 T_MAX = 128 / 30
 
+FRANKA_PANDA_NO_PD_CFG = FRANKA_PANDA_CFG.copy()
+FRANKA_PANDA_NO_PD_CFG.actuators["panda_shoulder"].stiffness = 0.0
+FRANKA_PANDA_NO_PD_CFG.actuators["panda_shoulder"].damping = 0.0
+FRANKA_PANDA_NO_PD_CFG.actuators["panda_forearm"].stiffness = 0.0
+FRANKA_PANDA_NO_PD_CFG.actuators["panda_forearm"].damping = 0.0
+
 ##
 # MDP settings
 ##

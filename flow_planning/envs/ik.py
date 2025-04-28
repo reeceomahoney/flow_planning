@@ -2,22 +2,16 @@ from flow_planning.envs.mdp.actions import CustomOscActionCfg
 from isaaclab.controllers import OperationalSpaceControllerCfg
 from isaaclab.envs.mdp.actions.actions_cfg import DifferentialInverseKinematicsActionCfg
 from isaaclab.utils import configclass
-from isaaclab_assets.robots.franka import FRANKA_PANDA_HIGH_PD_CFG
+from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG, FRANKA_PANDA_HIGH_PD_CFG
 
 from . import mdp
-from .rsl_rl import T_MAX, FrankaRLEnvCfg
+from .rsl_rl import T_MAX, FrankaRLEnvCfg, FRANKA_PANDA_NO_PD_CFG
 
 
 @configclass
 class FrankaIKEnvCfg(FrankaRLEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-
-        # FRANKA_PANDA_CFG.spawn.rigid_props.disable_gravity = False  # type: ignore
-        # FRANKA_PANDA_CFG.actuators["panda_shoulder"].stiffness = 0.0
-        # FRANKA_PANDA_CFG.actuators["panda_shoulder"].damping = 0.0
-        # FRANKA_PANDA_CFG.actuators["panda_forearm"].stiffness = 0.0
-        # FRANKA_PANDA_CFG.actuators["panda_forearm"].damping = 0.0
 
         self.scene.robot = FRANKA_PANDA_HIGH_PD_CFG.replace(
             prim_path="{ENV_REGEX_NS}/Robot"
