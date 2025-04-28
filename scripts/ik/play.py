@@ -81,7 +81,7 @@ def main(agent_cfg: DictConfig):
 
         # collect data
         if args_cli.collect and timestep % 2 == 0:
-            action = torch.clamp(arm_action.joint_pos_des, -max_vals, max_vals)  # type: ignore
+            action = torch.clamp(arm_action._final_action, -max_vals, max_vals)  # type: ignore
             collector.add_step(obs, action, rew, dones)
 
         obs = next_obs

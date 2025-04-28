@@ -53,8 +53,9 @@ class CustomOscAction(OperationalSpaceControllerAction):
             nullspace_joint_pos_target=self._nullspace_joint_pos_target,
         )
         # Add noise
-        self._joint_efforts += torch.normal(mean=0.0, std=self.noise_stds)
+        # self._joint_efforts += torch.normal(mean=0.0, std=self.noise_stds)
         # Apply the joint efforts
+        self._final_action = self._joint_efforts
         self._asset.set_joint_effort_target(
             self._joint_efforts, joint_ids=self._joint_ids
         )
@@ -72,7 +73,7 @@ class CustomIKController(DifferentialIKController):
         # apply the custom scaling factor
         delta_joint_pos = joint_pos_des - joint_pos
         joint_pos_des = joint_pos + 0.15 * delta_joint_pos
-        joint_pos_des += 0.2 * torch.randn_like(joint_pos_des)
+        # joint_pos_des += 0.2 * torch.randn_like(joint_pos_des)
         return joint_pos_des
 
 
@@ -100,7 +101,7 @@ class CustomIKAction(DifferentialInverseKinematicsAction):
         else:
             joint_pos_des = joint_pos.clone()
         # set the joint position command
-        self.joint_pos_des = joint_pos_des
+        self._final_action = joint_pos_des
         self._asset.set_joint_position_target(joint_pos_des, self._joint_ids)
 
 
