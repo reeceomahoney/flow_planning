@@ -56,7 +56,7 @@ class Policy(nn.Module):
         self.sampling_steps = sampling_steps
         self.guide_scale = 0.0
         self.train_splitting = False
-        self.test_splitting = False
+        self.test_splitting = True
         self.scheduler = DDPMScheduler(self.sampling_steps)
         self.algo = algo
 
@@ -192,7 +192,7 @@ class Policy(nn.Module):
             t = expand_t(self.timesteps[idx], bsz)
             t_end = expand_t(self.timesteps[idx + 1], bsz)
             x += (t_end - t) * self.model(x, t, data)
-            var = 1 - t
+            var = 1 - t_end
         elif self.algo == "mpd":
             t = self.timesteps[idx]
             t_ = t.view(-1, 1, 1).expand(bsz, 1, 1).float()
@@ -213,20 +213,24 @@ class Policy(nn.Module):
     def _guide_fn(self, x: Tensor) -> Tensor:
         # collision
         x = x.detach().clone().requires_grad_(True)
+        # x = self.normalizer.inverse_scale_obs(x)
         pts = torch.tensor([0.5, 0, 0.2]).view(1, 1, -1).to(self.device)
-        th = self.urdf_chain.forward_kinematics(x[0, :, :7], end_only=False)
+        x_ = x.reshape(-1, self.input_dim)
+        th = self.urdf_chain.forward_kinematics(x_[:, :7], end_only=False)
         matrices = {k: v.get_matrix() for k, v in th.items()}  # type: ignore
         pos = {k: v[:, :3, 3] for k, v in matrices.items()}
         pos = torch.stack(list(pos.values()), dim=1)
+        pos = pos.reshape(-1, self.T, 3)
         dists = torch.norm(pos - pts, dim=-1)
         collision_grad = torch.autograd.grad([dists.sum()], [x])[0].detach()
 
         # smoothness
         x = x.detach().clone().requires_grad_(True)
+        # x = self.normalizer.inverse_scale_obs(x)
         cost = self.gp(x)
         smooth_grad = torch.autograd.grad([cost.sum()], [x])[0].detach()
 
-        return 0.20 * collision_grad - 1e-6 * smooth_grad
+        return 0.1 * collision_grad - 1e-6 / self.guide_scale * smooth_grad
 
     ###################
     # Data processing #
@@ -326,11 +330,12 @@ class Policy(nn.Module):
         obs = self.env.get_observations()[0][0:1]
         goal = get_goal(self.env)[0:1]
         # create figure
-        guide_scales = torch.tensor([0])
+        guide_scales = torch.tensor([0, 1, 2, 3])
         # projection = "3d" if self.isaac_env else None
         projection = None
-        plt.rcParams.update({"font.size": 24})
-        fig = plt.figure(figsize=(10, 10), dpi=300)
+        plt.rcParams.update({"font.size": 36})
+        plt.rcParams.update({"xtick.labelsize": 36, "ytick.labelsize": 36})
+        fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(projection=projection)
         if len(guide_scales) > 1:
             colors = plt.get_cmap("viridis")(torch.linspace(0, 1, len(guide_scales)))
@@ -350,8 +355,8 @@ class Policy(nn.Module):
         self.guide_scale = 0
 
         # format plot
-        if len(guide_scales) > 1:
-            ax.legend(loc="upper left", fontsize=20)
+        # if len(guide_scales) > 1:
+        #     ax.legend(loc="upper left", fontsize=20)
         # ax.axis("equal")
         ax.set_xlabel("Y")
         ax.set_ylabel("Z")
