@@ -12,7 +12,7 @@ from .rsl_rl import FRANKA_PANDA_NO_PD_CFG, T_MAX, FrankaRLEnvCfg
 class FrankaIKEnvCfg(FrankaRLEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-        controller = "ik"
+        controller = "osc"
         if controller == "ik":
             self.scene.robot = FRANKA_PANDA_HIGH_PD_CFG.replace(
                 prim_path="{ENV_REGEX_NS}/Robot"

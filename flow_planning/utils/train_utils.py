@@ -6,7 +6,6 @@ import torch.nn as nn
 from torch import Tensor
 
 from flow_planning.envs import ParticleEnv
-from isaaclab.utils.math import matrix_from_quat
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 from isaaclab_tasks.utils import parse_env_cfg
 

@@ -55,7 +55,8 @@ class Policy(nn.Module):
         # diffusion / flow matching
         self.sampling_steps = sampling_steps
         self.guide_scale = 0.0
-        self.use_refinement = False
+        self.train_splitting = False
+        self.test_splitting = False
         self.scheduler = DDPMScheduler(self.sampling_steps)
         self.algo = algo
 
@@ -90,7 +91,7 @@ class Policy(nn.Module):
         x_1 = data["traj"]
         x_0 = torch.randn_like(x_1)
 
-        if random.random() < 0.5:
+        if self.train_splitting and random.random() < 0.5:
             x_0 = torch.cat([x_0[:, : self.T // 2], x_0[:, self.T // 2 :]], dim=0)
             x_1 = torch.cat([x_1[:, : self.T // 2], x_1[:, self.T // 2 :]], dim=0)
             data["obs"] = x_1[:, 0]
@@ -153,7 +154,7 @@ class Policy(nn.Module):
         x = self.inpaint(x, data)
 
         # refinement step
-        if self.use_refinement:
+        if self.test_splitting:
             midpoint = x[:, self.T // 2].clone()
             x_0 = torch.randn((bsz, self.T, self.input_dim)).to(self.device)
             x = 0.5 * x_0 + 0.5 * x
@@ -266,7 +267,7 @@ class Policy(nn.Module):
     def compute_ee_pos(self, x: Tensor) -> Tensor:
         # fk to get hand pose
         th = self.urdf_chain.forward_kinematics(x[0, :, :7])
-        m = th.get_matrix()
+        m = th.get_matrix()  # type: ignore
         pos = m[:, :3, 3]
         rot = pk.matrix_to_quaternion(m[:, :3, :3])
 
