@@ -13,6 +13,7 @@ hydra:
 # general
 seed: 42
 resume: false
+export: false
 
 # training
 num_iters: 5e5

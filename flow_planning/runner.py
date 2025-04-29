@@ -12,7 +12,7 @@ from rsl_rl.utils import store_code_state
 from tqdm import tqdm, trange
 
 from flow_planning.envs import ParticleEnv
-from flow_planning.policy import ClassifierPolicy, Policy
+from flow_planning.policy import ClassifierPolicy, JitPolicy, Policy
 from flow_planning.utils import (
     ExponentialMovingAverage,
     InferenceContext,
@@ -83,6 +83,8 @@ class Runner:
         normalizer = Normalizer(self.train_loader, self.device)
         if self.cfg.experiment.wandb_project == "vae":
             self.policy = VAEPolicy(model, normalizer, self.env, **self.cfg.policy)
+        elif self.cfg.export:
+            self.policy = JitPolicy(model, normalizer, self.env, **self.cfg.policy)
         else:
             self.policy = Policy(model, normalizer, self.env, **self.cfg.policy)
 

@@ -2,6 +2,7 @@ import copy
 import os
 
 import torch
+from torch import Tensor
 
 
 def export_policy_as_jit(policy: object, path: str, filename="policy.pt"):
@@ -15,8 +16,13 @@ class PolicyExporter(torch.nn.Module):
         policy.env = None
         self.policy = copy.deepcopy(policy)
 
-    def forward(self, obs: torch.Tensor, goal: torch.Tensor):
-        return self.policy.act({"obs": obs, "goal": goal})["action"]
+    def forward(self, x: Tensor, data: dict[str, Tensor], idx: int):
+        return self.policy(x, data, idx)
+
+    @torch.jit.export
+    def denormalize(self, x: Tensor):
+        x = self.policy.normalizer.clip(x)
+        return self.policy.normalizer.inverse_scale_obs(x)
 
     @torch.jit.export
     def reset(self):

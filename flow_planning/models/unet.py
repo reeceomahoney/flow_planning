@@ -132,7 +132,7 @@ class ConditionalUnet1D(nn.Module):
 
         h = []
         for mod_list in self.down_modules:
-            assert isinstance(mod_list, nn.ModuleList)
+            # assert isinstance(mod_list, nn.ModuleList)
             x = mod_list[0](x, global_feature)
             x = mod_list[1](x, global_feature)
             h.append(x)
@@ -142,7 +142,7 @@ class ConditionalUnet1D(nn.Module):
             x = mid_module(x, global_feature)
 
         for mod_list in self.up_modules:
-            assert isinstance(mod_list, nn.ModuleList)
+            # assert isinstance(mod_list, nn.ModuleList)
             x = torch.cat((x, h.pop()), dim=1)
             x = mod_list[0](x, global_feature)
             x = mod_list[1](x, global_feature)

@@ -47,6 +47,7 @@ from scipy.signal import savgol_filter
 
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
+from flow_planning.policy import JitPolicy
 from flow_planning.runner import ClassifierRunner, Runner
 from flow_planning.utils import (
     create_env,
@@ -104,6 +105,7 @@ def main(agent_cfg: DictConfig):
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
     env.unwrapped.sim.set_camera_view([2.0, 0.0, 0.4], [0.0, 0.0, 0.4])
 
+    agent_cfg.export = args_cli.export
     runner_class = ClassifierRunner if experiment == "classifier" else Runner
     runner = runner_class(env, agent_cfg, device=agent_cfg.device)
     log_root_path = os.path.abspath(f"logs/{experiment}")
@@ -144,7 +146,9 @@ def main(agent_cfg: DictConfig):
         # smooth actions
         action = output["action"]
         for i in range(action.shape[2]):
-            smoothed = savgol_filter(action[0, :, i].cpu(), window_length=63, polyorder=2)
+            smoothed = savgol_filter(
+                action[0, :, i].cpu(), window_length=63, polyorder=2
+            )
             action[0, :, i] = torch.tensor(smoothed).to(action.device)
 
         # env stepping

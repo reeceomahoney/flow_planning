@@ -402,6 +402,28 @@ class Policy(nn.Module):
             ax.plot(goal[0], goal[1], "*", **marker_params)
 
 
+# We need this becuase the guidance code isn't scriptable
+class JitPolicy(Policy):
+    def _create_model(self, model, lr, num_iters):
+        self.model = model
+        self.optimizer = AdamW(self.model.parameters(), lr=lr)
+        self.lr_scheduler = CosineAnnealingLR(self.optimizer, T_max=num_iters)
+        self.timesteps = torch.linspace(0, 1.0, self.sampling_steps + 1).to(self.device)
+
+    def forward(self, x: Tensor, data: dict[str, Tensor], idx: int) -> torch.Tensor:
+        # process
+        data = self.process(data)
+        x = self.inpaint(x, data)
+
+        # single inference step
+        bsz = data["obs"].shape[0]
+        t = expand_t(self.timesteps[idx], bsz)
+        t_end = expand_t(self.timesteps[idx + 1], bsz)
+        x += (t_end - t) * self.model(x, t, data)
+
+        return self.inpaint(x, data)
+
+
 class ClassifierPolicy(Policy):
     def _create_model(self, model, lr, num_iters):
         self.model = model
