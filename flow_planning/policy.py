@@ -1,12 +1,15 @@
 import random
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pytorch_kinematics as pk
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from matplotlib.collections import LineCollection
+from matplotlib.colors import Normalize
 from torch import Tensor
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -361,16 +364,18 @@ class Policy(nn.Module):
         # if len(guide_scales) > 1:
         #     ax.legend(loc="upper left", fontsize=20)
         # ax.axis("equal")
-        ax.set_xlabel("Y")
-        ax.set_ylabel("Z")
+        # ax.set_xlabel("Y")
+        # ax.set_ylabel("Z")
         # ax.set_xticklabels([])
         # ax.set_yticklabels([])
         if projection == "3d":
             ax.set_zticklabels([])  # type: ignore
-        # ax.set_xlim(0.375, 0.725)
-        # ax.set_ylim(0.16, 0.66)
+        ax.set_xlim(-0.05, 1.05)
+        ax.set_ylim(-0.05, 1.05)
         ax.tick_params(axis="both", which="both", length=0)
-        ax.grid(True, linestyle="--", alpha=0.6)
+        ax.grid(True, alpha=0.6)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
         plt.tight_layout()
 
         # save or log
@@ -385,7 +390,7 @@ class Policy(nn.Module):
     def _draw_trajectory(self, ax, traj, obs, goal, color=None, label=None):
         traj, obs, goal = traj.cpu(), obs.cpu(), goal.cpu()
         marker_params = {
-            "markersize": 35,
+            "markersize": 55,
             "markerfacecolor": "white",
             "markeredgecolor": "black",
             "markeredgewidth": 2,
@@ -406,9 +411,29 @@ class Policy(nn.Module):
         else:
             traj, obs, goal = traj[0], obs[0], goal[0]
             c = torch.linspace(0, 1, len(traj)) ** 0.7
-            ax.scatter(traj[:, 0], traj[:, 1], c=c, cmap="Reds", s=500)
+            ax.scatter(traj[:, 0], traj[:, 1], c=c, cmap="Blues", s=1500)
             ax.plot(obs[0], obs[1], "o", **marker_params)
+            ax.plot(goal[0], goal[1], "o", **marker_params)
+            marker_params["markersize"] = 35
+            marker_params["markerfacecolor"] = "black"
+            ax.plot(obs[0], obs[1], "o", **marker_params)
+            marker_params["markersize"] = 45
             ax.plot(goal[0], goal[1], "*", **marker_params)
+
+            # position = traj[:, :2].detach().cpu().numpy()
+            # points = position.reshape(-1, 1, 2)
+            # segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            #
+            # t = np.linspace(1, 0, len(segments))
+            # lc = LineCollection(
+            #     segments,
+            #     cmap="RdBu",
+            #     norm=Normalize(0, 1),
+            #     array=t,
+            #     linewidths=20,
+            #     capstyle="round",
+            # )
+            # ax.add_collection(lc)
 
 
 # We need this becuase the guidance code isn't scriptable
