@@ -1,7 +1,7 @@
 # when using vae, set both env and experiment options
 
 defaults:
-  - env: franka
+  - env: particle
   - experiment: flow_planning
   - model: unet
   - _self_

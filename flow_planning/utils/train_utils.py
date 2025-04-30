@@ -32,7 +32,7 @@ def create_env(env_name, agent_cfg):
                 device=agent_cfg.device,
             )
             agent_cfg.obs_dim = env.obs_dim
-            agent_cfg.act_dim = env.act_dim
+            agent_cfg.act_dim = 0
             env_cfg = None
         case _:
             env_cfg = parse_env_cfg(
@@ -59,8 +59,8 @@ def get_goal(env):
         joint_vel = torch.zeros_like(joint_pos)
         goal = torch.cat([joint_pos, joint_vel], dim=-1)
     else:
-        goal = env.goal
-        goal = torch.tensor([0, 1, 0.6, -0.6])
+        # goal = env.goal
+        goal = torch.tensor([[1, 0, 0.33, -0.33]])
     return goal
 
 

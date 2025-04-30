@@ -93,7 +93,7 @@ class FlowPlanningDataset(Dataset):
         obs = self.add_padding(obs_splits, max_len, temporal=True)
         actions = self.add_padding(actions_splits, max_len, temporal=True)
         masks = self.create_masks(obs_splits, max_len)
-        obs, actions, masks = obs[:, 64:], actions[:, 64:], masks[:, 64:]
+        # obs, actions, masks = obs[:, 64:], actions[:, 64:], masks[:, 64:]
         goal = obs[:, -1]
 
         self.data = {"obs": obs, "action": actions, "mask": masks, "goal": goal}

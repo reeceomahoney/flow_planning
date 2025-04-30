@@ -55,7 +55,7 @@ class Policy(nn.Module):
         # diffusion / flow matching
         self.sampling_steps = sampling_steps
         self.guide_scale = 0.0
-        self.train_splitting = False
+        self.train_splitting = True
         self.test_splitting = False
         self.scheduler = DDPMScheduler(self.sampling_steps)
         self.algo = algo
@@ -330,7 +330,7 @@ class Policy(nn.Module):
         obs = self.env.get_observations()[0][0:1]
         goal = get_goal(self.env)[0:1]
         # create figure
-        guide_scales = torch.tensor([0, 1, 2, 3])
+        guide_scales = torch.tensor([0])
         # projection = "3d" if self.isaac_env else None
         projection = None
         plt.rcParams.update({"font.size": 36})
@@ -346,11 +346,14 @@ class Policy(nn.Module):
         for i in range(len(guide_scales)):
             self.guide_scale = guide_scales[i].item()
             traj = self.act({"obs": obs, "goal": goal})["traj"]
-            ee_pos = self.compute_ee_pos(traj)
-            ee_goal = torch.tensor([0.5, 0.3, 0.2])
+            # ee_pos = self.compute_ee_pos(traj)
+            # ee_goal = torch.tensor([0.5, 0.3, 0.2])
             label = f"Scale: {guide_scales[i]:.1f}" if len(guide_scales) > 1 else None
+            # self._draw_trajectory(
+            #     ax, ee_pos, ee_pos[0], ee_goal, color=colors[i], label=label
+            # )
             self._draw_trajectory(
-                ax, ee_pos, ee_pos[0], ee_goal, color=colors[i], label=label
+                ax, traj, obs, goal, color=colors[i], label=label
             )
         self.guide_scale = 0
 
@@ -401,6 +404,7 @@ class Policy(nn.Module):
             marker_params["markersize"] = 25
             ax.plot(goal[1], goal[2], "*", **marker_params)
         else:
+            traj, obs, goal = traj[0], obs[0], goal[0]
             c = torch.linspace(0, 1, len(traj)) ** 0.7
             ax.scatter(traj[:, 0], traj[:, 1], c=c, cmap="Reds", s=500)
             ax.plot(obs[0], obs[1], "o", **marker_params)

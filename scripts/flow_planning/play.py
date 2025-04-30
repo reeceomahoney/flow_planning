@@ -103,7 +103,7 @@ def main(agent_cfg: DictConfig):
     env_name = agent_cfg.env.env_name
     experiment = agent_cfg.experiment.wandb_project
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
-    env.unwrapped.sim.set_camera_view([2.0, 0.0, 0.4], [0.0, 0.0, 0.4])
+    # env.unwrapped.sim.set_camera_view([2.0, 0.0, 0.4], [0.0, 0.0, 0.4])
 
     agent_cfg.export = args_cli.export
     runner_class = ClassifierRunner if experiment == "classifier" else Runner
@@ -111,6 +111,7 @@ def main(agent_cfg: DictConfig):
     log_root_path = os.path.abspath(f"logs/{experiment}")
 
     resume_path = get_latest_run(log_root_path)
+    resume_path = str(resume_path).replace("40000", "10000")
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(resume_path)
     policy = runner.policy

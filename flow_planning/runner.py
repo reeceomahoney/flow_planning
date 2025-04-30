@@ -170,7 +170,7 @@ class Runner:
                     test_mse = statistics.mean(test_mse)
 
                 self.policy.plot(it)
-                goal_error, goal_std = self.policy.calculate_goal_error()
+                # goal_error, goal_std = self.policy.calculate_goal_error()
 
             # training
             try:
@@ -218,8 +218,8 @@ class Runner:
         # evaluation
         if locs["it"] % self.cfg.eval_interval == 0:
             wandb.log({"Loss/test_mse": locs["test_mse"]}, step=locs["it"])
-            wandb.log({"Loss/goal_error": locs["goal_error"]}, step=locs["it"])
-            wandb.log({"Loss/goal_error_std": locs["goal_std"]}, step=locs["it"])
+            # wandb.log({"Loss/goal_error": locs["goal_error"]}, step=locs["it"])
+            # wandb.log({"Loss/goal_error_std": locs["goal_std"]}, step=locs["it"])
         # simulation
         if self.simulate and locs["it"] % self.cfg.sim_interval == 0:
             if locs["ep_infos"]:
