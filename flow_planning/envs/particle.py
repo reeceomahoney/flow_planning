@@ -3,6 +3,9 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from matplotlib.axis import Tick
+from matplotlib.collections import LineCollection
+from matplotlib.colors import Normalize
 
 
 class ParticleEnv:
@@ -164,22 +167,60 @@ class ParticleEnv:
         return {k: v.to(device) for k, v in data.items()}
 
     def visualize_trajectories(self, trajectories, batch_size=10):
-        plt.figure(figsize=(12, 10))
-
+        _, ax = plt.subplots(figsize=(10, 10))
         positions = trajectories["obs"][..., :2]
-        n_trajs = min(batch_size, positions.shape[0])
+
+        n_trajs_available = positions.shape[0]
+        n_trajs = min(batch_size, n_trajs_available)
+
+        blue_trajectories_segments = []
+        red_trajectories_segments = []
 
         for i in range(n_trajs):
-            position = positions[i].cpu()
+            position = positions[i].detach().cpu().numpy()
+            points = position.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
-            plt.plot(position[:, 0], position[:, 1], c="blue", alpha=0.5)
-            plt.scatter(position[0, 0], position[0, 1], c="green", s=30)
-            plt.scatter(position[-1, 0], position[-1, 1], c="red", s=30)
+            if position[0, 0] < 0.2 and position[0, 1] < 0.2:
+                blue_trajectories_segments.append(segments)
+            else:
+                red_trajectories_segments.append(segments)
 
-        plt.title(f"Batch of {n_trajs} PD Controlled Particle Trajectories")
-        plt.xlim(-0.1, self.grid_size + 0.1)
-        plt.ylim(-0.1, self.grid_size + 0.1)
-        plt.grid(True)
+        norm = Normalize(0, 1)
+
+        # Plot blue gradient lines first
+        for segments in blue_trajectories_segments:
+            t = np.linspace(0.2, 1, len(segments))
+            lc = LineCollection(
+                segments,
+                cmap="Blues",
+                norm=norm,
+                array=t,
+                linewidths=5,
+                capstyle="round",
+            )
+            ax.add_collection(lc)
+
+        # Plot red gradient lines second
+        for segments in red_trajectories_segments:
+            t = np.linspace(0.2, 1, len(segments))
+            lc = LineCollection(
+                segments,
+                cmap="Reds",
+                norm=norm,
+                array=t,
+                linewidths=5,
+                capstyle="round",
+            )
+            ax.add_collection(lc)
+
+        ax.set_xlim(-0.05, self.grid_size + 0.05)
+        ax.set_ylim(-0.05, self.grid_size + 0.05)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.tick_params(length=0)
+        ax.grid(True)
+        plt.savefig("particle_trajectories_lines.png", bbox_inches="tight")
         plt.show()
 
     def close(self):

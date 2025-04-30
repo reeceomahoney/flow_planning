@@ -32,4 +32,4 @@ print(
     f"Generated dataset with obs shape {dataset['obs'].shape} samples in {time.time() - start_time:.2f} seconds"
 )
 print(f"Saved dataset to {save_path}")
-# env.visualize_trajectories(dataset, batch_size=100)
+env.visualize_trajectories(dataset, batch_size=50)
