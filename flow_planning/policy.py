@@ -56,7 +56,7 @@ class Policy(nn.Module):
         self.sampling_steps = sampling_steps
         self.guide_scale = 0.0
         self.train_splitting = False
-        self.test_splitting = True
+        self.test_splitting = False
         self.scheduler = DDPMScheduler(self.sampling_steps)
         self.algo = algo
 

@@ -20,7 +20,7 @@ class FlowPlanningDataset(Dataset):
         if env_name.startswith("Isaac"):
             # build path
             current_dir = os.path.dirname(os.path.realpath(__file__))
-            data_directory = "/data/ik/x_data.hdf5"
+            data_directory = "/data/ik/data.hdf5"
             dataset_path = current_dir + "/../../" + data_directory
             log.info(f"Loading data from {data_directory}")
 
@@ -44,7 +44,7 @@ class FlowPlanningDataset(Dataset):
             actions = data["actions"]
             terminals = data["terminals"]
             # HACK: We need this because we're recording every other step, fix this
-            terminals[:, 63] = 1
+            # terminals[:, 63] = 1
             terminals[:, -1] = 1
             split_indices = torch.where(terminals.flatten() == 1)[0] + 1
 
@@ -93,7 +93,7 @@ class FlowPlanningDataset(Dataset):
         obs = self.add_padding(obs_splits, max_len, temporal=True)
         actions = self.add_padding(actions_splits, max_len, temporal=True)
         masks = self.create_masks(obs_splits, max_len)
-        # obs, actions, masks = obs[:, 64:], actions[:, 64:], masks[:, 64:]
+        obs, actions, masks = obs[:, 64:], actions[:, 64:], masks[:, 64:]
         goal = obs[:, -1]
 
         self.data = {"obs": obs, "action": actions, "mask": masks, "goal": goal}
