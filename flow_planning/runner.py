@@ -163,7 +163,7 @@ class Runner:
             # evaluation
             if it % self.cfg.eval_interval == 0:
                 with InferenceContext(self):
-                    test_mse  = []
+                    test_mse = []
                     for batch in tqdm(self.test_loader, desc="Testing...", leave=False):
                         mse = self.policy.test(batch)
                         test_mse.append(mse)
@@ -260,6 +260,7 @@ class Runner:
             "model_state_dict": self.policy.model.state_dict(),
             "optimizer_state_dict": self.policy.optimizer.state_dict(),
             "norm_state_dict": self.policy.normalizer.state_dict(),
+            "ema_state_dict": self.ema_helper.state_dict(),
             "iter": self.current_learning_iteration,
         }
         # if not self.simulate:
@@ -278,6 +279,8 @@ class Runner:
         self.policy.model.load_state_dict(loaded_dict["model_state_dict"])
         self.policy.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
         self.policy.normalizer.load_state_dict(loaded_dict["norm_state_dict"])
+        self.ema_helper.load_state_dict(loaded_dict["ema_state_dict"])
+        self.current_learning_iteration = loaded_dict["iter"]
         # if not self.simulate:
         #     self.policy.classifier.load_state_dict(loaded_dict["classifier_state_dict"])
 
