@@ -16,7 +16,7 @@ colors = colormap(np.linspace(0.2, 0.8, len(categories)))
 bars = ax.bar(categories, values, color=colors, edgecolor="black", linewidth=1.5)
 
 ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
-ax.set_ylabel("Max obstacle size", fontsize=24)
+ax.set_ylabel("Max obstacle size [m]", fontsize=24)
 
 ax.spines["top"].set_visible(False)  # Remove top border
 ax.spines["right"].set_visible(False)  # Remove right border
