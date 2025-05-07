@@ -18,3 +18,4 @@
 - [ ] Remove RL code
 - [ ] Make vis class
 - [ ] Refactor env cfgs
+- [ ] Add IK goals and init

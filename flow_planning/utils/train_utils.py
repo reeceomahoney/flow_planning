@@ -1,4 +1,6 @@
 import math
+import os
+from pathlib import Path
 
 import gymnasium as gym
 import torch
@@ -6,6 +8,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from flow_planning.envs import ParticleEnv
+from isaaclab.utils.dict import print_dict
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 from isaaclab_tasks.utils import parse_env_cfg
 
@@ -23,7 +26,7 @@ def calculate_return(obs: Tensor) -> Tensor:
     return collision_mask.unsqueeze(-1)
 
 
-def create_env(env_name, agent_cfg):
+def create_env(env_name, agent_cfg, video=False, resume_path=None):
     match env_name:
         case "Particle":
             env = ParticleEnv(
@@ -43,7 +46,26 @@ def create_env(env_name, agent_cfg):
             env_cfg.seed = agent_cfg.seed
             env_cfg.sim.device = agent_cfg.device
             # create isaac environment
-            env = gym.make(env_name, cfg=env_cfg, render_mode=None)
+            env = gym.make(
+                env_name, cfg=env_cfg, render_mode="rgb_array" if video else None
+            )
+
+            # video recording
+            if video:
+                print("[INFO] Recording video")
+                assert resume_path is not None
+                video_folder = Path(resume_path).parent.parent / "videos"
+                os.makedirs(video_folder, exist_ok=True)
+
+                video_kwargs = {
+                    "video_folder": video_folder,
+                    "step_trigger": lambda step: step == 0,
+                    "video_length": env.max_episode_length,  # type: ignore
+                    "disable_logger": True,
+                }
+                print_dict(video_kwargs, nesting=4)
+                env = gym.wrappers.RecordVideo(env, **video_kwargs)  # type: ignore
+
             env = RslRlVecEnvWrapper(env)  # type: ignore
             agent_cfg.obs_dim = env.num_obs
             agent_cfg.act_dim = 0
