@@ -1,6 +1,7 @@
 import random
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import pytorch_kinematics as pk
 import torch
 import torch.nn as nn
@@ -16,7 +17,7 @@ from flow_planning.envs import ParticleEnv
 from flow_planning.models.classifier import ClassifierMLP
 from flow_planning.models.unet import ConditionalUnet1D
 from flow_planning.models.vae import VAE
-from flow_planning.utils import CostGPTrajectory, Normalizer, calculate_return, get_goal
+from flow_planning.utils import CostGPTrajectory, Normalizer, get_goal
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
@@ -324,6 +325,44 @@ class Policy(nn.Module):
         tot_std = (init_std + final_std) / 2
         tot_error = (init_error + final_error) / 2
         return tot_error, tot_std
+
+    def calculate_obstacle_error(self):
+        obs = self.env.get_observations()[0]
+        goal = get_goal(self.env)
+        obstacle = torch.tensor([0.5, 0.0, 0.2]).to(self.device)
+        self.guide_scale = 0.6
+
+        plt.rcParams.update({"font.size": 36})
+        plt.rcParams.update({"xtick.labelsize": 36, "ytick.labelsize": 36})
+        _, ax = plt.subplots(figsize=(16, 10))
+
+        self.test_splitting = True
+        for _ in range(2):
+            traj = self.act({"obs": obs, "goal": goal})["traj"]
+            traj = traj[:, :, :7].reshape(-1, 7)
+            ee_pos = self.compute_ee_pos(traj.unsqueeze(0))
+            ee_pos = ee_pos.reshape(-1, self.T, 3)
+            dists = torch.norm(ee_pos - obstacle, dim=-1)
+
+            obstacle_sizes = torch.linspace(0.15, 0.325, 20)
+            success_rates = []
+            for size in obstacle_sizes:
+                success_rate = (dists.min(dim=1).values > size).float().mean()
+                success_rates.append(success_rate.item())
+
+            plt.plot(obstacle_sizes.cpu(), success_rates, linewidth=10)
+
+            self.test_splitting = False
+            self.guide_scale = 0.5
+
+        ax.legend(["FP", "FP + split"], loc="lower left")
+        ax.set_xlabel("Obstacle radius")
+        ax.set_ylabel("Collision-free success rate")
+        ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
+        ax.grid(True, linestyle="--", alpha=0.6)
+        plt.tight_layout()
+        plt.savefig("data.pdf", bbox_inches="tight")
+        plt.show()
 
     def plot(self, it: int = 0, log: bool = True):
         # get obs and goal
