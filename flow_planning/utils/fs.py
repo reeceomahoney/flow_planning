@@ -13,28 +13,31 @@ def get_latest_run(base_path, resume=False):
         match = re.search(r"model_(\d+)\.pt", file_path.name)
         return int(match.group(1)) if match else -1
 
-    all_dirs = []
-    base_path = Path(base_path)
+    if base_path[-1].isnumeric():
+        target_dir = Path(base_path)
+    else:
+        all_dirs = []
+        base_path = Path(base_path)
 
-    # find all dates
-    for date_dir in base_path.iterdir():
-        if not date_dir.is_dir():
-            continue
-        # find all times
-        for time_dir in date_dir.iterdir():
-            if not time_dir.is_dir():
+        # find all dates
+        for date_dir in base_path.iterdir():
+            if not date_dir.is_dir():
                 continue
-            try:
-                dir_datetime = datetime.strptime(
-                    f"{date_dir.name}/{time_dir.name}", "%b-%d/%H-%M-%S"
-                )
-                all_dirs.append((time_dir, dir_datetime))
-            except ValueError:
-                continue
+            # find all times
+            for time_dir in date_dir.iterdir():
+                if not time_dir.is_dir():
+                    continue
+                try:
+                    dir_datetime = datetime.strptime(
+                        f"{date_dir.name}/{time_dir.name}", "%b-%d/%H-%M-%S"
+                    )
+                    all_dirs.append((time_dir, dir_datetime))
+                except ValueError:
+                    continue
 
-    # sort
-    sorted_directories = sorted(all_dirs, key=lambda x: x[1], reverse=True)
-    target_dir = sorted_directories[1][0] if resume else sorted_directories[0][0]
+        # sort
+        sorted_directories = sorted(all_dirs, key=lambda x: x[1], reverse=True)
+        target_dir = sorted_directories[1][0] if resume else sorted_directories[0][0]
 
     # get latest model
     model_files = list(target_dir.glob("models/model_*.pt"))
