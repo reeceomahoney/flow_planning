@@ -356,7 +356,7 @@ class Policy(nn.Module):
             self.guide_scale = 0.5
 
         ax.legend(["FP", "FP + split"], loc="lower left")
-        ax.set_xlabel("Obstacle radius")
+        ax.set_xlabel("Obstacle radius [m]")
         ax.set_ylabel("Collision-free success rate")
         ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
         ax.grid(True, linestyle="--", alpha=0.6)
