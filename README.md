@@ -15,7 +15,7 @@
 - [x] Simplify classifier runner
 - [x] Fix jit tracing
 - [x] simplify normalizer
-- [ ] Remove RL code
+- [x] Remove RL code
 - [ ] Make vis class
 - [ ] Refactor env cfgs
 - [ ] Add IK goals and init
