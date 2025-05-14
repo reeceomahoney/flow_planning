@@ -16,6 +16,7 @@
 - [x] Fix jit tracing
 - [x] simplify normalizer
 - [x] Remove RL code
+- [x] Refactor env cfgs
+- [ ] Tune performance
 - [ ] Make vis class
-- [ ] Refactor env cfgs
 - [ ] Add IK goals and init

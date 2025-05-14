@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 
 @hydra.main(
-    version_base=None, config_path="../../config/flow_planning", config_name="cfg.yaml"
+    version_base=None, config_path="../config", config_name="cfg.yaml"
 )
 def main(agent_cfg: DictConfig):
     # set log dir
