@@ -48,7 +48,6 @@ import hydra
 import numpy as np
 import torch
 from omegaconf import DictConfig
-from scipy.signal import savgol_filter
 
 import flow_planning.envs  # noqa: F401
 import isaaclab.sim as sim_utils
@@ -94,7 +93,7 @@ def create_trajectory_visualizer(agent_cfg):
 
 
 @hydra.main(
-    version_base=None, config_path="../../config/flow_planning", config_name="cfg.yaml"
+    version_base=None, config_path="../config", config_name="cfg.yaml"
 )
 def main(agent_cfg: DictConfig):
     # set random seed
@@ -151,15 +150,7 @@ def main(agent_cfg: DictConfig):
             ee_pos = policy.compute_ee_pos(output["traj"])
             trajectory_visualizer.visualize(ee_pos)
 
-        action = output["action"]
-        action = torch.repeat_interleave(action, repeats=2, dim=1)
-
-        # smooth actions
-        # for i in range(action.shape[2]):
-        #     smoothed = savgol_filter(
-        #         action[0, :, i].cpu(), window_length=63, polyorder=2
-        #     )
-        #     action[0, :, i] = torch.tensor(smoothed).to(action.device)
+        action = torch.repeat_interleave(output["action"], repeats=2, dim=1)
 
         # env stepping
         for i in range(2 * runner.policy.T_action):

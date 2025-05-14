@@ -62,7 +62,7 @@ class Policy(nn.Module):
         self.algo = algo
 
         self.urdf_chain = pk.build_serial_chain_from_urdf(
-            open("data/franka_panda/panda.urdf", mode="rb").read(), "panda_hand"
+            open("data/urdf/panda.urdf", mode="rb").read(), "panda_hand"
         ).to(device=env.device)
         self.gp = CostGPTrajectory(self.T, 1 / 30, 1)
 
@@ -134,7 +134,7 @@ class Policy(nn.Module):
         data = self.process(data)
         x = self.forward(data)
         # calculate loss
-        traj = self.normalizer.inverse_scale_obs(data["traj"])
+        traj = self.normalizer.inverse_scale(data["traj"])
         return F.mse_loss(x, traj).item()
 
     #####################
@@ -174,7 +174,7 @@ class Policy(nn.Module):
 
         # denormalize
         x = self.normalizer.clip(x)
-        return self.normalizer.inverse_scale_obs(x)
+        return self.normalizer.inverse_scale(x)
 
     def _compute_timesteps(self):
         if self.algo == "flow_planning":
@@ -214,7 +214,7 @@ class Policy(nn.Module):
     def _guide_fn(self, x: Tensor) -> Tensor:
         # collision
         x = x.detach().clone().requires_grad_(True)
-        # x = self.normalizer.inverse_scale_obs(x)
+        # x = self.normalizer.inverse_scale(x)
         pts = torch.tensor([0.5, 0, 0.2]).view(1, 1, -1).to(self.device)
         x_ = x.reshape(-1, self.input_dim)
         th = self.urdf_chain.forward_kinematics(x_[:, :7], end_only=False)
@@ -227,7 +227,7 @@ class Policy(nn.Module):
 
         # smoothness
         x = x.detach().clone().requires_grad_(True)
-        # x = self.normalizer.inverse_scale_obs(x)
+        # x = self.normalizer.inverse_scale(x)
         cost = self.gp(x)
         smooth_grad = torch.autograd.grad([cost.sum()], [x])[0].detach()
 
@@ -243,20 +243,16 @@ class Policy(nn.Module):
         if "action" in data:
             # train and test case
             obs = data["obs"][:, 0]
-            traj = self.normalizer.scale_obs(data["obs"])
-            # returns = calculate_return(data["obs"])
-            # returns = self.normalizer.scale_return(returns)
-            returns = torch.ones(obs.shape[0], 1).to(self.device)
+            traj = self.normalizer.scale(data["obs"])
         else:
             # sim case
             traj = None
             obs = data["obs"]
-            returns = torch.ones(obs.shape[0], 1).to(self.device)
 
-        obs = self.normalizer.scale_obs(obs)
-        goal = self.normalizer.scale_obs(data["goal"])
+        obs = self.normalizer.scale(obs)
+        goal = self.normalizer.scale(data["goal"])
 
-        out = {"obs": obs, "goal": goal, "returns": returns}
+        out = {"obs": obs, "goal": goal}
         if traj is not None:
             out["traj"] = traj
         return out

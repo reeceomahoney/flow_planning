@@ -7,8 +7,6 @@ import minari
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset, random_split
 
-from .train_utils import calculate_return
-
 log = logging.getLogger(__name__)
 
 
@@ -20,7 +18,7 @@ class FlowPlanningDataset(Dataset):
         if env_name.startswith("Isaac"):
             # build path
             current_dir = os.path.dirname(os.path.realpath(__file__))
-            data_directory = "/data/ik/data.hdf5"
+            data_directory = "/data/datasets/franka_data.hdf5"
             dataset_path = current_dir + "/../../" + data_directory
             log.info(f"Loading data from {data_directory}")
 
@@ -223,21 +221,5 @@ def get_dataloaders(
         num_workers=num_workers,
         pin_memory=True,
     )
-
-    # calculate value range
-    dl = train_dataloader.dataset.dataset.dataset  # type: ignore
-    use_value_range = False
-    if use_value_range:
-        # gammas = torch.tensor([0.99**i for i in range(T)])
-        returns = []
-        for batch in train_dataloader:
-            obs = batch["obs"]
-            returns.append(calculate_return(obs))
-        returns = torch.cat(returns)
-        dl.r_max = returns.max()
-        dl.r_min = returns.min()
-    else:
-        dl.r_max = torch.tensor(1.0)
-        dl.r_min = torch.tensor(0.0)
 
     return train_dataloader, test_dataloader

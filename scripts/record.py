@@ -39,15 +39,12 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 
 import flow_planning.envs  # noqa: F401
-from flow_planning.utils.data_collector import DataCollector
-from flow_planning.utils.train_utils import create_env
+from flow_planning.utils import DataCollector, create_env
 from isaaclab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
-@hydra.main(
-    version_base=None, config_path="../config/", config_name="cfg.yaml"
-)
+@hydra.main(version_base=None, config_path="../config/", config_name="cfg.yaml")
 def main(agent_cfg: DictConfig):
     # set random seed
     random.seed(agent_cfg.seed)
@@ -64,7 +61,7 @@ def main(agent_cfg: DictConfig):
 
     # create data collector
     if args_cli.collect:
-        collector = DataCollector(env, "data/ik/data.hdf5")
+        collector = DataCollector(env, "data/datasets/franka_data.hdf5")
         pbar = tqdm(total=args_cli.num_timesteps, desc="Collecting data")
         max_vals = torch.tensor([50, 50, 50, 50, 3, 3, 3]).to(device=env.device)
     else:

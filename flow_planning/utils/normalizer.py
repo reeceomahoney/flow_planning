@@ -10,8 +10,6 @@ class Normalizer(nn.Module):
         # scaling
         self.register_buffer("obs_max", dl.obs_max)
         self.register_buffer("obs_min", dl.obs_min)
-        self.register_buffer("r_max", dl.r_max)
-        self.register_buffer("r_min", dl.r_min)
 
         # limits
         limits = torch.zeros((2, self.obs_max.shape[-1]))
@@ -21,18 +19,10 @@ class Normalizer(nn.Module):
 
         self.to(device)
 
-    def scale_obs(self, x) -> torch.Tensor:
+    def scale(self, x) -> torch.Tensor:
         return (x - self.obs_min) / (self.obs_max - self.obs_min) * 2 - 1
 
-    def scale_goal(self, x) -> torch.Tensor:
-        return (x - self.obs_min[18:27]) / (
-            self.obs_max[18:27] - self.obs_min[18:27]
-        ) * 2 - 1
-
-    def scale_return(self, r) -> torch.Tensor:
-        return (r - self.r_min) / (self.r_max - self.r_min)
-
-    def inverse_scale_obs(self, x) -> torch.Tensor:
+    def inverse_scale(self, x) -> torch.Tensor:
         return (x + 1) * (self.obs_max - self.obs_min) / 2 + self.obs_min
 
     def clip(self, y):
