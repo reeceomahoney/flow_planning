@@ -9,7 +9,7 @@ CONTROLLER = "osc"  # "ik" or "osc"
 
 
 @configclass
-class FrankaIKEnvCfg(FrankaEnvCfg):
+class FrankaRecordEnvCfg(FrankaEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         if CONTROLLER == "ik":

@@ -46,7 +46,7 @@ from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 
 
 @hydra.main(
-    version_base=None, config_path="../../config/flow_planning", config_name="cfg.yaml"
+    version_base=None, config_path="../config/", config_name="cfg.yaml"
 )
 def main(agent_cfg: DictConfig):
     # set random seed
@@ -56,7 +56,7 @@ def main(agent_cfg: DictConfig):
 
     # create environment
     agent_cfg.num_envs = args_cli.num_envs
-    env_name = "Isaac-Franka-IK"
+    env_name = "Isaac-Franka-Record"
     env, agent_cfg, _ = create_env(env_name, agent_cfg)
     assert isinstance(env, RslRlVecEnvWrapper)
     assert isinstance(env.unwrapped, ManagerBasedRLEnv)

@@ -3,9 +3,10 @@ import math
 import isaaclab.sim as sim_utils
 import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
 from isaaclab.assets import AssetBaseCfg
-from isaaclab.envs import ManagerBasedEnvCfg
+from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.managers import ActionTermCfg as ActionTerm
 from isaaclab.managers import EventTermCfg as EventTerm
+from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
@@ -96,20 +97,27 @@ class ActionsCfg:
 class ObservationsCfg:
     """Observation specifications for the MDP."""
 
-    joint_pos = ObsTerm(
-        func=mdp.joint_pos,
-        noise=Unoise(n_min=-0.01, n_max=0.01),
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names="panda_joint.*")},
-    )
-    joint_vel = ObsTerm(
-        func=mdp.joint_vel,
-        noise=Unoise(n_min=-0.01, n_max=0.01),
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names="panda_joint.*")},
-    )
+    @configclass
+    class PolicyCfg(ObsGroup):
+        """Observations for policy group."""
 
-    def __post_init__(self):
-        self.enable_corruption = True
-        self.concatenate_terms = True
+        joint_pos = ObsTerm(
+            func=mdp.joint_pos,
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names="panda_joint.*")},
+        )
+        joint_vel = ObsTerm(
+            func=mdp.joint_vel,
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names="panda_joint.*")},
+        )
+
+        def __post_init__(self):
+            self.enable_corruption = True
+            self.concatenate_terms = True
+
+    # observation groups
+    policy: PolicyCfg = PolicyCfg()
 
 
 @configclass
@@ -144,7 +152,7 @@ class TerminationsCfg:
 
 
 @configclass
-class FrankaEnvCfg(ManagerBasedEnvCfg):
+class FrankaEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the Franka environment."""
 
     # Scene settings
@@ -154,6 +162,7 @@ class FrankaEnvCfg(ManagerBasedEnvCfg):
     actions: ActionsCfg = ActionsCfg()
     commands: CommandsCfg = CommandsCfg()
     # MDP settings
+    rewards = None
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
 

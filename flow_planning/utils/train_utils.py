@@ -5,25 +5,11 @@ from pathlib import Path
 import gymnasium as gym
 import torch
 import torch.nn as nn
-from torch import Tensor
 
 from flow_planning.envs import ParticleEnv
 from isaaclab.utils.dict import print_dict
 from isaaclab_rl.rsl_rl.vecenv_wrapper import RslRlVecEnvWrapper
 from isaaclab_tasks.utils import parse_env_cfg
-
-
-def check_collisions(traj: Tensor) -> Tensor:
-    """0 if in collision, 1 otherwise"""
-    x_mask = (traj[..., 0] >= 0.3) & (traj[..., 0] <= 0.7)
-    y_mask = (traj[..., 1] >= -0.1) & (traj[..., 1] <= 0.1)
-    z_mask = (traj[..., 2] >= 0.0) & (traj[..., 2] <= 0.5)
-    return ~(x_mask & y_mask & z_mask)
-
-
-def calculate_return(obs: Tensor) -> Tensor:
-    collision_mask = check_collisions(obs[..., 18:21]).float()
-    return collision_mask.unsqueeze(-1)
 
 
 def create_env(env_name, agent_cfg, video=False, resume_path=None):
