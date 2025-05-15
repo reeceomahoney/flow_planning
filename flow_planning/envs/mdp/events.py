@@ -1,3 +1,6 @@
+import math
+
+import pytorch_kinematics as pk
 import torch
 
 import isaaclab.utils.math as math_utils
@@ -8,33 +11,57 @@ from isaaclab.managers import SceneEntityCfg
 from .commands import FixedPoseCommand
 
 
-def reset_joints_random(
+def reset_joints_uniform_task_space(
     env: ManagerBasedRLEnv,
     env_ids: torch.Tensor,
-    asset_cfg: SceneEntityCfg,
+    lower_limits: tuple[float, float],
+    upper_limits: tuple[float, float],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ):
-    """Reset the robot joints to a random position within its full range."""
-    # extract the used quantities (to enable type-hinting)
+    """Reset the robot joints to a random position in task space."""
+    # extract joint info
     asset: Articulation = env.scene[asset_cfg.name]
-    # get default joint state for shape
     joint_pos = asset.data.default_joint_pos[env_ids].clone()
-    joint_vel = asset.data.default_joint_vel[env_ids].clone()
+    joint_pos_limits = asset.data.soft_joint_pos_limits[env_ids].clone()
+    # task space limits
+    lower = torch.tensor(lower_limits, device=env.device)
+    upper = torch.tensor(upper_limits, device=env.device)
 
-    # sample position
-    joint_pos_limits = asset.data.soft_joint_pos_limits[env_ids]
-    joint_pos = math_utils.sample_uniform(
-        joint_pos_limits[..., 0],
-        joint_pos_limits[..., 1],
-        joint_pos.shape,
-        str(joint_pos.device),
+    # build urdf chain for ik
+    chain = pk.build_serial_chain_from_urdf(
+        open("data/urdf/panda.urdf", mode="rb").read(), "panda_hand"
+    ).to(device=env.device)
+
+    # get target position and orientation
+    ee_pos = math_utils.sample_uniform(
+        lower, upper, (env_ids.shape[0], 3), str(env.device)
     )
+    ee_ori = torch.tensor([[0.0, math.pi, 0.0]], device=env.device).expand(
+        env_ids.shape[0], -1
+    )
+    goal_tf = pk.Transform3d(pos=ee_pos, rot=ee_ori, device=str(env.device))
 
-    # set velocities to zero
-    joint_vel = torch.zeros_like(joint_vel)
+    # solve ik
+    ik = pk.PseudoInverseIK(
+        chain,
+        max_iterations=30,
+        retry_configs=joint_pos[0:1, :7],
+        joint_limits=joint_pos_limits[0].T,
+        early_stopping_any_converged=True,
+        early_stopping_no_improvement="all",
+        debug=False,
+        lr=0.2,
+    )
+    sol = ik.solve(goal_tf)
 
     # set into the physics simulation
+    joint_pos[:, :7] = sol.solutions.squeeze(1)
+    joint_vel = torch.zeros_like(joint_pos)
     asset.write_joint_state_to_sim(
-        joint_pos, joint_vel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids.tolist()
+        joint_pos,
+        joint_vel,
+        joint_ids=asset_cfg.joint_ids,
+        env_ids=env_ids,  # type: ignore
     )
 
 
@@ -67,16 +94,6 @@ def reset_joints_fixed(
     # set velocities to zero
     joint_vel = asset.data.default_joint_vel[env_ids]
     joint_vel = torch.zeros_like(joint_vel)
-
-    # add noise
-    # position_range = (0.95, 1.05)
-    # velocity_range = (0.0, 0.0)
-    # joint_pos *= math_utils.sample_uniform(
-    #     *position_range, joint_pos.shape, joint_pos.device
-    # )
-    # joint_vel *= math_utils.sample_uniform(
-    #     *velocity_range, joint_vel.shape, joint_vel.device
-    # )
 
     # set into the physics simulation
     asset.write_joint_state_to_sim(

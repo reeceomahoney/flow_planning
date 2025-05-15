@@ -53,7 +53,7 @@ class CustomOscAction(OperationalSpaceControllerAction):
             nullspace_joint_pos_target=self._nullspace_joint_pos_target,
         )
         # Add noise
-        self._joint_efforts += torch.normal(mean=0.0, std=self.noise_stds)
+        # self._joint_efforts += torch.normal(mean=0.0, std=self.noise_stds)
         # Apply the joint efforts
         self._final_action = self._joint_efforts
         self._asset.set_joint_effort_target(

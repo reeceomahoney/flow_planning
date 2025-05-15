@@ -1,7 +1,6 @@
 import math
 
 import isaaclab.sim as sim_utils
-import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.managers import ActionTermCfg as ActionTerm
@@ -15,6 +14,8 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from isaaclab_assets.robots.franka import FRANKA_PANDA_HIGH_PD_CFG
+
+from . import mdp
 
 ##
 # Scene definition
@@ -124,19 +125,20 @@ class ObservationsCfg:
 class EventCfg:
     """Configuration for events."""
 
-    reset_robot_joints = EventTerm(
-        func=mdp.reset_joints_by_scale,
-        mode="reset",
-        params={
-            "position_range": (0.5, 1.5),
-            "velocity_range": (0.0, 0.0),
-        },
-    )
-
-    # reset_robot_joints = EventTermCfg(
-    #     func=mdp.reset_joints_fixed,
+    # reset_robot_joints = EventTerm(
+    #     func=mdp.reset_joints_by_scale,
     #     mode="reset",
+    #     params={
+    #         "position_range": (0.5, 1.5),
+    #         "velocity_range": (0.0, 0.0),
+    #     },
     # )
+
+    reset_robot_joints = EventTerm(
+        func=mdp.reset_joints_uniform_task_space,
+        mode="reset",
+        params={"lower_limits": (0.35, -0.2, 0.15), "upper_limits": (0.65, 0.2, 0.5)},
+    )
 
 
 @configclass

@@ -25,6 +25,7 @@ class FrankaRecordEnvCfg(FrankaEnvCfg):
                 ),
             )
         elif CONTROLLER == "osc":
+            self.scene.robot.spawn.rigid_props.disable_gravity = False
             self.scene.robot.actuators["panda_shoulder"].stiffness = 0.0
             self.scene.robot.actuators["panda_shoulder"].damping = 0.0
             self.scene.robot.actuators["panda_forearm"].stiffness = 0.0
@@ -47,4 +48,3 @@ class FrankaRecordEnvCfg(FrankaEnvCfg):
                 nullspace_joint_pos_target="default",
                 body_offset=mdp.CustomOscActionCfg.OffsetCfg(pos=(0.0, 0.0, 0.107)),
             )
-        # self.episode_length_s = 2 * T_MAX
