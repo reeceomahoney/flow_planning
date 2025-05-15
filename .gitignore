@@ -60,6 +60,6 @@ _build
 
 *.pkl
 *.hdf5
+*.pt
 *.png
-data/*
 *.pdf
