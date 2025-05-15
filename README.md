@@ -17,6 +17,6 @@
 - [x] simplify normalizer
 - [x] Remove RL code
 - [x] Refactor env cfgs
+- [x] Add IK goals and init
 - [ ] Tune performance
 - [ ] Make vis class
-- [ ] Add IK goals and init

@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import gymnasium as gym
+import pytorch_kinematics as pk
 import torch
 import torch.nn as nn
 
@@ -59,11 +60,37 @@ def create_env(env_name, agent_cfg, video=False, resume_path=None):
     return env, agent_cfg, env_cfg
 
 
-def get_goal(env):
+def get_goal(env, urdf_chain=None):
     if isinstance(env, RslRlVecEnvWrapper):
-        # (0.5, 0.3, 0.2)
-        joint_pos = torch.tensor([1.2836e-01, 2.8420e-01, 4.3287e-01, -2.0772e00, -1.6051e-01, 2.3218e00, 1.4306e00])  # fmt: off
-        joint_pos = joint_pos.expand(env.num_envs, -1).to(env.device)
+        assert urdf_chain is not None
+
+        # get joint info
+        init_pos = env.unwrapped.scene["robot"].data.default_joint_pos.clone()[0:1, :7]
+        joint_pos_limits = env.unwrapped.scene[
+            "robot"
+        ].data.soft_joint_pos_limits.clone()[0]
+
+        # get target position and orientation
+        pos = torch.tensor([0.5, 0.3, 0.2], device=env.device)
+        pos = env.unwrapped.command_manager.get_command("ee_pose")[0, :3]  # type: ignore
+        rot = torch.tensor([0.0, math.pi, 0.0], device=env.device)
+        goal_tf = pk.Transform3d(pos=pos, rot=rot, device=str(env.device))
+
+        # solve ik
+        ik = pk.PseudoInverseIK(
+            urdf_chain,
+            max_iterations=30,
+            retry_configs=init_pos,
+            joint_limits=joint_pos_limits.T,
+            early_stopping_any_converged=True,
+            early_stopping_no_improvement="all",
+            debug=False,
+            lr=0.2,
+        )
+        sol = ik.solve(goal_tf)
+
+        # build goal state
+        joint_pos = sol.solutions.squeeze(1)
         joint_vel = torch.zeros_like(joint_pos)
         goal = torch.cat([joint_pos, joint_vel], dim=-1)
     else:

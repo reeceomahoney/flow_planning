@@ -142,7 +142,7 @@ def main(agent_cfg: DictConfig):
     obs, _ = env.get_observations()
     start = time.time()
     while simulation_app.is_running():
-        goal = get_goal(env)
+        goal = get_goal(env, policy.urdf_chain)
         output = policy.act({"obs": obs, "goal": goal})
 
         # visualize ee trajectory
