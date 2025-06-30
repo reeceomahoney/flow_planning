@@ -63,3 +63,4 @@ _build
 *.pt
 *.png
 *.pdf
+data/*
